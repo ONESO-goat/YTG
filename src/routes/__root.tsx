@@ -77,14 +77,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Guardian's Compass — Your Truest Guardian" },
+      { name: "description", content: "A mindful companion that helps you avoid harmful online habits and rewards kinder choices." },
+      { property: "og:title", content: "Guardian's Compass" },
+      { property: "og:description", content: "A mindful companion that helps you avoid harmful online habits and rewards kinder choices." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {

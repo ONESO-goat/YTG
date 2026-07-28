@@ -1,0 +1,942 @@
+a226b43f554',)
+2026-07-24 13:07:12,385 INFO sqlalchemy.engine.Engine SELECT guardian_settings.id, guardian_settings.strictness, guardian_settings.language, guardian_settings.custom_warning_messages, guardian_settings.points_loss_enabled, guardian_settings.base_points_lost, guardian_settings.guardian_id 
+FROM guardian_settings 
+WHERE guardian_settings.guardian_id = ?
+2026-07-24 13:07:12,385 INFO sqlalchemy.engine.Engine [cached since 0.3279s ago] ('a0a18375-c3d7-4a2c-befb-0a226b43f554',)
+2026-07-24 13:07:12,386 INFO sqlalchemy.engine.Engine SELECT guardian_restrictions.id, guardian_restrictions.guardian_id, guardian_restrictions.restrictions 
+FROM guardian_restrictions 
+WHERE guardian_restrictions.guardian_id = ?
+2026-07-24 13:07:12,388 INFO sqlalchemy.engine.Engine [cached since 0.2773s ago] ('a0a18375-c3d7-4a2c-befb-0a226b43f554',)
+2026-07-24 13:07:21,544 INFO sqlalchemy.engine.Engine SELECT user.id AS user_id, user.username AS user_username, user.name AS user_name, user.email AS user_email, user.password AS user_password, user.user_type AS user_user_type, user.currency AS user_currency 
+FROM user 
+WHERE user.id = ?
+2026-07-24 13:07:21,544 INFO sqlalchemy.engine.Engine [cached since 9.639s ago] ('4a36feb9-b714-4046-9288-defc6966baee',)
+2026-07-24 13:07:21,584 INFO sqlalchemy.engine.Engine UPDATE guardian_session SET warning_active=?, events=? WHERE guardian_session.id = ?
+2026-07-24 13:07:21,584 INFO sqlalchemy.engine.Engine [generated in 0.00038s] (1, '[{"content": "Dependent: ** offspring_20260724170710 **                \\nTimestamp: 07-24-26 01:07 pm\\n\\nCategory validated: ** graphic violence * ... (1665 characters truncated) ... on bar is at the very bottom, featuring icons for Home, Search, Create (plus sign), Reels, and Profile.", "should_avoid": true, "time_to_wait": 290}]', 'afeee344-387a-4168-a643-4f0d22e3f507')
+2026-07-24 13:07:21,589 INFO sqlalchemy.engine.Engine COMMIT
+2026-07-24 13:07:21,604 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:21,609 INFO sqlalchemy.engine.Engine SELECT guardian_settings.id AS guardian_settings_id, guardian_settings.strictness AS guardian_settings_strictness, guardian_settings.language AS guardian_settings_language, guardian_settings.custom_warning_messages AS guardian_settings_custom_warning_messages, guardian_settings.points_loss_enabled AS guardian_settings_points_loss_enabled, guardian_settings.base_points_lost AS guardian_settings_base_points_lost, guardian_settings.guardian_id AS guardian_settings_guardian_id 
+FROM guardian_settings 
+WHERE guardian_settings.id = ?
+2026-07-24 13:07:21,609 INFO sqlalchemy.engine.Engine [generated in 0.00041s] ('a6eb978a-9dd9-43ad-b230-9ab3d70e7834',)
+2026-07-24 13:07:21,616 INFO sqlalchemy.engine.Engine SELECT guardian_session.id AS guardian_session_id, guardian_session.user_id AS guardian_session_user_id, guardian_session.guardian_id AS guardian_session_guardian_id, guardian_session.warning_active AS guardian_session_warning_active, guardian_session.tracking_start_at AS guardian_session_tracking_start_at, guardian_session.target_duration_seconds AS guardian_session_target_duration_seconds, guardian_session.total_alerts AS guardian_session_total_alerts, guardian_session.penalized_this_episode AS guardian_session_penalized_this_episode, guardian_session.events AS guardian_session_events, guardian_session.points_pending AS guardian_session_points_pending, guardian_session.last_scan_at AS guardian_session_last_scan_at, guardian_session.created_at AS guardian_session_created_at 
+FROM guardian_session 
+WHERE guardian_session.id = ?
+2026-07-24 13:07:21,619 INFO sqlalchemy.engine.Engine [generated in 0.00287s] ('afeee344-387a-4168-a643-4f0d22e3f507',)
+2026-07-24 13:07:21,620 INFO sqlalchemy.engine.Engine COMMIT
+2026-07-24 13:07:21,621 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:21,621 INFO sqlalchemy.engine.Engine SELECT guardian_session.id AS guardian_session_id, guardian_session.user_id AS guardian_session_user_id, guardian_session.guardian_id AS guardian_session_guardian_id, guardian_session.warning_active AS guardian_session_warning_active, guardian_session.tracking_start_at AS guardian_session_tracking_start_at, guardian_session.target_duration_seconds AS guardian_session_target_duration_seconds, guardian_session.total_alerts AS guardian_session_total_alerts, guardian_session.penalized_this_episode AS guardian_session_penalized_this_episode, guardian_session.events AS guardian_session_events, guardian_session.points_pending AS guardian_session_points_pending, guardian_session.last_scan_at AS guardian_session_last_scan_at, guardian_session.created_at AS guardian_session_created_at 
+FROM guardian_session 
+WHERE guardian_session.id = ?
+2026-07-24 13:07:21,621 INFO sqlalchemy.engine.Engine [cached since 0.005324s ago] ('afeee344-387a-4168-a643-4f0d22e3f507',)
+INFO:     127.0.0.1:45162 - "POST /sessions/afeee344-387a-4168-a643-4f0d22e3f507/scan HTTP/1.1" 200 OK
+2026-07-24 13:07:21,635 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-07-24 13:07:21,673 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:21,673 INFO sqlalchemy.engine.Engine SELECT guardian_session.id AS guardian_session_id, guardian_session.user_id AS guardian_session_user_id, guardian_session.guardian_id AS guardian_session_guardian_id, guardian_session.warning_active AS guardian_session_warning_active, guardian_session.tracking_start_at AS guardian_session_tracking_start_at, guardian_session.target_duration_seconds AS guardian_session_target_duration_seconds, guardian_session.total_alerts AS guardian_session_total_alerts, guardian_session.penalized_this_episode AS guardian_session_penalized_this_episode, guardian_session.events AS guardian_session_events, guardian_session.points_pending AS guardian_session_points_pending, guardian_session.last_scan_at AS guardian_session_last_scan_at, guardian_session.created_at AS guardian_session_created_at 
+FROM guardian_session 
+WHERE guardian_session.id = ?
+2026-07-24 13:07:21,673 INFO sqlalchemy.engine.Engine [cached since 9.296s ago] ('afeee344-387a-4168-a643-4f0d22e3f507',)
+INFO:     127.0.0.1:41136 - "GET /sessions/afeee344-387a-4168-a643-4f0d22e3f507 HTTP/1.1" 200 OK
+2026-07-24 13:07:21,680 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-07-24 13:07:21,695 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:21,698 INFO sqlalchemy.engine.Engine SELECT guardian_session.id AS guardian_session_id, guardian_session.user_id AS guardian_session_user_id, guardian_session.guardian_id AS guardian_session_guardian_id, guardian_session.warning_active AS guardian_session_warning_active, guardian_session.tracking_start_at AS guardian_session_tracking_start_at, guardian_session.target_duration_seconds AS guardian_session_target_duration_seconds, guardian_session.total_alerts AS guardian_session_total_alerts, guardian_session.penalized_this_episode AS guardian_session_penalized_this_episode, guardian_session.events AS guardian_session_events, guardian_session.points_pending AS guardian_session_points_pending, guardian_session.last_scan_at AS guardian_session_last_scan_at, guardian_session.created_at AS guardian_session_created_at 
+FROM guardian_session 
+WHERE guardian_session.id = ?
+2026-07-24 13:07:21,698 INFO sqlalchemy.engine.Engine [cached since 9.321s ago] ('afeee344-387a-4168-a643-4f0d22e3f507',)
+2026-07-24 13:07:21,699 INFO sqlalchemy.engine.Engine SELECT guardian.id AS guardian_id, guardian.name AS guardian_name, guardian.guardian_type AS guardian_guardian_type, guardian.owner_id AS guardian_owner_id, guardian.code AS guardian_code, guardian."on" AS guardian_on 
+FROM guardian 
+WHERE guardian.id = ?
+2026-07-24 13:07:21,703 INFO sqlalchemy.engine.Engine [cached since 9.703s ago] ('a0a18375-c3d7-4a2c-befb-0a226b43f554',)
+2026-07-24 13:07:21,709 INFO sqlalchemy.engine.Engine SELECT user.id AS user_id, user.username AS user_username, user.name AS user_name, user.email AS user_email, user.password AS user_password, user.user_type AS user_user_type, user.currency AS user_currency 
+FROM user 
+WHERE user.id = ?
+2026-07-24 13:07:21,710 INFO sqlalchemy.engine.Engine [generated in 0.00079s] ('d05b32a5-fcd7-4331-b6d3-1e39729e63b0',)
+2026-07-24 13:07:21,716 INFO sqlalchemy.engine.Engine UPDATE guardian_session SET events=? WHERE guardian_session.id = ?
+2026-07-24 13:07:21,719 INFO sqlalchemy.engine.Engine [generated in 0.00263s] ('[]', 'afeee344-387a-4168-a643-4f0d22e3f507')
+2026-07-24 13:07:21,723 INFO sqlalchemy.engine.Engine INSERT INTO guardianreport (id, content, guardian_id, send_to_id) VALUES (?, ?, ?, ?)
+2026-07-24 13:07:21,724 INFO sqlalchemy.engine.Engine [generated in 0.00129s] ('429b7cd7-e1d2-4eed-938a-a8cf8153f723', "Dependent: ** offspring_20260724170710 **                \nTimestamp: 07-24-26 01:07 pm\n\nCategory validated: ** graphic violence **\n\ndescription: ... (1537 characters truncated) ... the interaction. A standard Instagram navigation bar is at the very bottom, featuring icons for Home, Search, Create (plus sign), Reels, and Profile.", None, 'd05b32a5-fcd7-4331-b6d3-1e39729e63b0')
+2026-07-24 13:07:21,746 INFO sqlalchemy.engine.Engine COMMIT
+INFO:     127.0.0.1:41148 - "POST /sessions/afeee344-387a-4168-a643-4f0d22e3f507/flush HTTP/1.1" 200 OK
+2026-07-24 13:07:21,835 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:21,836 INFO sqlalchemy.engine.Engine SELECT guardian.id AS guardian_id, guardian.name AS guardian_name, guardian.guardian_type AS guardian_guardian_type, guardian.owner_id AS guardian_owner_id, guardian.code AS guardian_code, guardian."on" AS guardian_on 
+FROM guardian 
+WHERE guardian.id = ?
+2026-07-24 13:07:21,836 INFO sqlalchemy.engine.Engine [cached since 9.836s ago] ('a0a18375-c3d7-4a2c-befb-0a226b43f554',)
+2026-07-24 13:07:21,852 INFO sqlalchemy.engine.Engine SELECT guardianreport.id, guardianreport.content, guardianreport.guardian_id, guardianreport.send_to_id 
+FROM guardianreport 
+WHERE guardianreport.guardian_id = ?
+2026-07-24 13:07:21,853 INFO sqlalchemy.engine.Engine [generated in 0.00067s] ('a0a18375-c3d7-4a2c-befb-0a226b43f554',)
+INFO:     127.0.0.1:41160 - "GET /guardians/reports/a0a18375-c3d7-4a2c-befb-0a226b43f554 HTTP/1.1" 200 OK
+2026-07-24 13:07:21,863 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-07-24 13:07:21,934 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:21,939 INFO sqlalchemy.engine.Engine SELECT user.id AS user_id, user.username AS user_username, user.name AS user_name, user.email AS user_email, user.password AS user_password, user.user_type AS user_user_type, user.currency AS user_currency 
+FROM user 
+WHERE user.id = ?
+2026-07-24 13:07:21,939 INFO sqlalchemy.engine.Engine [cached since 10.03s ago] ('4a36feb9-b714-4046-9288-defc6966baee',)
+2026-07-24 13:07:21,952 INFO sqlalchemy.engine.Engine UPDATE user SET currency=? WHERE user.id = ?
+2026-07-24 13:07:21,954 INFO sqlalchemy.engine.Engine [generated in 0.00152s] (50, '4a36feb9-b714-4046-9288-defc6966baee')
+2026-07-24 13:07:22,018 INFO sqlalchemy.engine.Engine COMMIT
+2026-07-24 13:07:22,125 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:22,130 INFO sqlalchemy.engine.Engine SELECT user.id AS user_id, user.username AS user_username, user.name AS user_name, user.email AS user_email, user.password AS user_password, user.user_type AS user_user_type, user.currency AS user_currency 
+FROM user 
+WHERE user.id = ?
+2026-07-24 13:07:22,130 INFO sqlalchemy.engine.Engine [generated in 0.00037s] ('4a36feb9-b714-4046-9288-defc6966baee',)
+INFO:     127.0.0.1:41174 - "POST /gameify/users/4a36feb9-b714-4046-9288-defc6966baee/points/add HTTP/1.1" 200 OK
+2026-07-24 13:07:22,139 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-07-24 13:07:22,164 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:22,166 INFO sqlalchemy.engine.Engine SELECT user.id AS user_id, user.username AS user_username, user.name AS user_name, user.email AS user_email, user.password AS user_password, user.user_type AS user_user_type, user.currency AS user_currency 
+FROM user 
+WHERE user.id = ?
+2026-07-24 13:07:22,166 INFO sqlalchemy.engine.Engine [cached since 10.26s ago] ('4a36feb9-b714-4046-9288-defc6966baee',)
+2026-07-24 13:07:22,170 INFO sqlalchemy.engine.Engine UPDATE user SET currency=? WHERE user.id = ?
+2026-07-24 13:07:22,170 INFO sqlalchemy.engine.Engine [cached since 0.218s ago] (40, '4a36feb9-b714-4046-9288-defc6966baee')
+2026-07-24 13:07:22,175 INFO sqlalchemy.engine.Engine COMMIT
+2026-07-24 13:07:22,227 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:22,230 INFO sqlalchemy.engine.Engine SELECT user.id AS user_id, user.username AS user_username, user.name AS user_name, user.email AS user_email, user.password AS user_password, user.user_type AS user_user_type, user.currency AS user_currency 
+FROM user 
+WHERE user.id = ?
+2026-07-24 13:07:22,231 INFO sqlalchemy.engine.Engine [cached since 0.1006s ago] ('4a36feb9-b714-4046-9288-defc6966baee',)
+INFO:     127.0.0.1:41182 - "POST /gameify/users/4a36feb9-b714-4046-9288-defc6966baee/points/remove HTTP/1.1" 200 OK
+2026-07-24 13:07:22,241 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-07-24 13:07:22,277 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:22,294 INFO sqlalchemy.engine.Engine INSERT INTO reward (id, name, type, amount, cost) VALUES (?, ?, ?, ?, ?)
+2026-07-24 13:07:22,296 INFO sqlalchemy.engine.Engine [generated in 0.00294s] ('9f2242e2-a9f3-41f5-8a63-5299cbb0b9bb', 'Smoke Test Reward 20260724170710', 'GIFT_CARD', 5, 20)
+2026-07-24 13:07:22,304 INFO sqlalchemy.engine.Engine COMMIT
+INFO:     127.0.0.1:41184 - "POST /gameify/rewards HTTP/1.1" 201 Created
+2026-07-24 13:07:22,386 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:22,388 INFO sqlalchemy.engine.Engine SELECT reward.id, reward.name, reward.type, reward.amount, reward.cost 
+FROM reward
+2026-07-24 13:07:22,392 INFO sqlalchemy.engine.Engine [generated in 0.00410s] ()
+INFO:     127.0.0.1:41200 - "GET /gameify/rewards HTTP/1.1" 200 OK
+2026-07-24 13:07:22,405 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-07-24 13:07:22,427 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:22,428 INFO sqlalchemy.engine.Engine SELECT user.id AS user_id, user.username AS user_username, user.name AS user_name, user.email AS user_email, user.password AS user_password, user.user_type AS user_user_type, user.currency AS user_currency 
+FROM user 
+WHERE user.id = ?
+2026-07-24 13:07:22,431 INFO sqlalchemy.engine.Engine [cached since 10.53s ago] ('4a36feb9-b714-4046-9288-defc6966baee',)
+2026-07-24 13:07:22,435 INFO sqlalchemy.engine.Engine SELECT reward.id AS reward_id, reward.name AS reward_name, reward.type AS reward_type, reward.amount AS reward_amount, reward.cost AS reward_cost 
+FROM reward 
+WHERE reward.id = ?
+2026-07-24 13:07:22,440 INFO sqlalchemy.engine.Engine [generated in 0.00474s] ('a1ea687a-6315-4617-a49d-fa559681f327',)
+/home/oneso/Psyche/Psyche-set/equality_agent/services/gameify_service.py:23: SAWarning: Object of type <UserWonReward> not in session, add operation along 'User.rewards' will not proceed
+  session.commit()
+2026-07-24 13:07:22,450 INFO sqlalchemy.engine.Engine UPDATE user SET currency=? WHERE user.id = ?
+2026-07-24 13:07:22,452 INFO sqlalchemy.engine.Engine [cached since 0.5001s ago] (20, '4a36feb9-b714-4046-9288-defc6966baee')
+2026-07-24 13:07:22,455 INFO sqlalchemy.engine.Engine COMMIT
+2026-07-24 13:07:22,470 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:22,471 INFO sqlalchemy.engine.Engine SELECT reward.id AS reward_id, reward.name AS reward_name, reward.type AS reward_type, reward.amount AS reward_amount, reward.cost AS reward_cost 
+FROM reward 
+WHERE reward.id = ?
+2026-07-24 13:07:22,472 INFO sqlalchemy.engine.Engine [generated in 0.00030s] ('a1ea687a-6315-4617-a49d-fa559681f327',)
+2026-07-24 13:07:22,482 INFO sqlalchemy.engine.Engine SELECT user.id AS user_id, user.username AS user_username, user.name AS user_name, user.email AS user_email, user.password AS user_password, user.user_type AS user_user_type, user.currency AS user_currency 
+FROM user 
+WHERE user.id = ?
+2026-07-24 13:07:22,483 INFO sqlalchemy.engine.Engine [cached since 0.3525s ago] ('4a36feb9-b714-4046-9288-defc6966baee',)
+2026-07-24 13:07:22,494 INFO sqlalchemy.engine.Engine INSERT INTO userwonreward (id, order_id, user_id, reward_id) VALUES (?, ?, ?, ?)
+2026-07-24 13:07:22,494 INFO sqlalchemy.engine.Engine [generated in 0.00038s] ('8a8420d5-9756-470b-b89d-2c2d03e21374', 91658704967, '4a36feb9-b714-4046-9288-defc6966baee', 'a1ea687a-6315-4617-a49d-fa559681f327')
+2026-07-24 13:07:22,497 INFO sqlalchemy.engine.Engine COMMIT
+2026-07-24 13:07:22,508 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:22,508 INFO sqlalchemy.engine.Engine SELECT user.id AS user_id, user.username AS user_username, user.name AS user_name, user.email AS user_email, user.password AS user_password, user.user_type AS user_user_type, user.currency AS user_currency 
+FROM user 
+WHERE user.id = ?
+2026-07-24 13:07:22,509 INFO sqlalchemy.engine.Engine [cached since 0.3785s ago] ('4a36feb9-b714-4046-9288-defc6966baee',)
+2026-07-24 13:07:22,510 INFO sqlalchemy.engine.Engine SELECT reward.id AS reward_id, reward.name AS reward_name, reward.type AS reward_type, reward.amount AS reward_amount, reward.cost AS reward_cost 
+FROM reward 
+WHERE reward.id = ?
+2026-07-24 13:07:22,513 INFO sqlalchemy.engine.Engine [cached since 0.04152s ago] ('a1ea687a-6315-4617-a49d-fa559681f327',)
+INFO:     127.0.0.1:41204 - "POST /gameify/users/4a36feb9-b714-4046-9288-defc6966baee/rewards/buy HTTP/1.1" 200 OK
+2026-07-24 13:07:22,514 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-07-24 13:07:22,539 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-07-24 13:07:22,540 INFO sqlalchemy.engine.Engine SELECT guardian.id AS guardian_id, guardian.name AS guardian_name, guardian.guardian_type AS guardian_guardian_type, guardian.owner_id AS guardian_owner_id, guardian.code AS guardian_code, guardian."on" AS guardian_on 
+FROM guardian 
+WHERE guardian.id = ?
+2026-07-24 13:07:22,540 INFO sqlalchemy.engine.Engine [cached since 10.54s ago] ('a0a18375-c3d7-4a2c-befb-0a226b43f554',)
+2026-07-24 13:07:22,542 INFO sqlalchemy.engine.Engine SELECT guardian_settings.id, guardian_settings.strictness, guardian_settings.language, guardian_settings.custom_warning_messages, guardian_settings.points_loss_enabled, guardian_settings.base_points_lost, guardian_settings.guardian_id 
+FROM guardian_settings 
+WHERE guardian_settings.guardian_id = ?
+2026-07-24 13:07:22,542 INFO sqlalchemy.engine.Engine [cached since 10.48s ago] ('a0a18375-c3d7-4a2c-befb-0a226b43f554',)
+2026-07-24 13:07:22,545 INFO sqlalchemy.engine.Engine SELECT guardian_restrictions.id, guardian_restrictions.guardian_id, guardian_restrictions.restrictions 
+FROM guardian_restrictions 
+WHERE guardian_restrictions.guardian_id = ?
+2026-07-24 13:07:22,545 INFO sqlalchemy.engine.Engine [cached since 10.43s ago] ('a0a18375-c3d7-4a2c-befb-0a226b43f554',)
+2026-07-24 13:07:22,547 INFO sqlalchemy.engine.Engine SELECT guardian_session.id, guardian_session.user_id, guardian_session.guardian_id, guardian_session.warning_active, guardian_session.tracking_start_at, guardian_session.target_duration_seconds, guardian_session.total_alerts, guardian_session.penalized_this_episode, guardian_session.events, guardian_session.points_pending, guardian_session.last_scan_at, guardian_session.created_at 
+FROM guardian_session 
+WHERE guardian_session.guardian_id = ?
+2026-07-24 13:07:22,547 INFO sqlalchemy.engine.Engine [cached since 10.22s ago] ('a0a18375-c3d7-4a2c-befb-0a226b43f554',)
+2026-07-24 13:07:22,549 INFO sqlalchemy.engine.Engine UPDATE guardian SET "on"=? WHERE guardian.id = ?
+2026-07-24 13:07:22,552 INFO sqlalchemy.engine.Engine [cached since 10.26s ago] (0, 'a0a18375-c3d7-4a2c-befb-0a226b43f554')
+2026-07-24 13:07:22,556 INFO sqlalchemy.engine.Engine DELETE FROM guardian_session WHERE guardian_session.id = ?
+2026-07-24 13:07:22,559 INFO sqlalchemy.engine.Engine [generated in 0.00254s] ('afeee344-387a-4168-a643-4f0d22e3f507',)
+2026-07-24 13:07:22,561 INFO sqlalchemy.engine.Engine COMMIT
+INFO:     127.0.0.1:41214 - "POST /sessions/a0a18375-c3d7-4a2c-befb-0a226b43f554/off HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'YTG_app_test.py'. Reloading...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# YTG (Your Truest Guardian) — Lovable Build Prompt
+
+Copy everything below the line into Lovable as your build prompt. A few notes for you (Julius) before you paste it, not part of the prompt itself:
+
+**On extension vs. app — here's the call, and the honest reasoning:**
+Lovable generates standard React web apps, not packaged browser-extension bundles (manifest.json, background service workers, content scripts). So rather than asking Lovable to build something it structurally can't produce, the prompt below has it build a **web app** that achieves the same 5-second screenshot loop using the browser's built-in **Screen Capture API** (`getDisplayMedia`) — the user grants one-time screen-share permission in the browser tab, and the app captures a frame to canvas every 5 seconds and POSTs it. This is honestly the better MVP/demo choice anyway: it works in any modern browser with zero install friction, which is exactly what you want walking into a room with Microsoft employees. A true background browser extension is a legitimate v2/production path, but it's out of scope for what Lovable can output — worth saying that plainly if anyone asks "is this an extension?" in your demo.
+
+---
+
+## PROMPT FOR LOVABLE
+
+I'm building **YTG (Your Truest Guardian)** — a gamified content-monitoring web app for parents/caregivers and individuals who want to proactively avoid harmful content online, with a reward system that reinforces good avoidance behavior instead of just blocking things outright.
+
+### The problem and the philosophy
+
+Exposure to hateful, extremist, and psychologically harmful content online — especially for young people — is a real driver of radicalization, poor mental health, and normalized hate. Most existing tools (parental control apps, content filters) work purely through restriction: block the site, log the violation, punish after the fact. That approach treats the symptom, not the behavior.
+
+YTG is built on a different premise: **hate and harmful ideology take root through repeated, normalized exposure — so the fight against them starts with helping people build the habit of actively recognizing and walking away from that content, and reinforcing that choice positively.** Instead of only blocking, YTG watches, gently warns, and then *rewards* the person for choosing to disengage. The goal is to build a real behavioral habit of avoidance, not just a technical barrier that a determined person routes around.
+
+This matters most for youth, who are both the most frequent targets of algorithmically-pushed extremist and harmful content, and the most able to build durable habits early. But the product also serves individual adults who want the same kind of support for their own browsing habits, without a guardian involved at all.
+
+### The two audiences, and how the experience differs for each
+
+**1. Caregiver / Parent (the "Guardian" account holder)**
+This person sets up and configures monitoring for one or more dependents (or for a whole family). Their experience should feel calm, clear, and trustworthy — like a well-designed admin dashboard, not a toy. They need to:
+- Create a Guardian (family or personal type)
+- Connect dependents/offspring to that Guardian
+- Configure what content categories to restrict (e.g. "extremist content," "graphic violence," "gambling" — a flexible list, not hardcoded)
+- Set strictness level (weak / normal / harsh) — this controls how aggressively content gets flagged
+- Customize the warning and applause messages shown to the person being monitored (so it can sound like *them*, not a generic system — e.g. "Please skip this one for me, okay?" instead of a cold system alert)
+- Decide whether a points-loss penalty is enabled for repeated/ignored warnings, and how many points are at stake
+- View a dashboard of recent flagged events/reports across all connected dependents
+- Turn monitoring on/off for the household
+
+**2. Youth / Individual (the monitored person)**
+This person's experience should feel encouraging, game-like, and rewarding — never punitive-feeling by default, even though a penalty mechanic exists for guardians who opt into it. Think more "duolingo streak" energy than "your parents are watching you" energy, even though, functionally, they are. They need to:
+- See their current point balance and recent activity clearly
+- Get a warning overlay when something restricted is detected on their screen — this should feel like a caring nudge, not a scary lockout. Show the guardian's custom warning message here.
+- See positive reinforcement (the custom "applause" message, a points animation, maybe a streak counter) when they successfully avoid content for the required duration
+- Browse and redeem a rewards store (gift cards, and other reward types as configured)
+- See their history/streaks in a way that feels motivating, not surveillance-heavy
+
+### The core technical loop (this is the most important part to get right)
+
+The monitoring works through a **repeating 5-second screen-capture loop**, running in the browser tab once the user has started a monitoring session:
+
+1. On session start, request screen-share permission via the browser's Screen Capture API (`navigator.mediaDevices.getDisplayMedia`).
+2. Every 5 seconds, capture the current frame to an off-screen `<canvas>`, convert it to a PNG blob.
+3. POST that PNG blob as multipart form data to the backend's scan endpoint for the active session.
+4. The backend responds with a JSON object describing whether the content was flagged, a description, whether a warning should be shown, and current session state (warning active, points awarded, etc.).
+5. The frontend reacts to that response:
+   - If flagged: show the warning overlay with the guardian's custom warning message.
+   - If the warning clears (content no longer flagged after being flagged): show a subtle "still working" or countdown state while the backend's avoidance timer runs.
+   - If points were awarded: show the applause message and a satisfying points-earned animation.
+6. Repeat every 5 seconds for as long as the session is active. The user can stop the session manually at any time (this should always be an easy, visible, unhidden action — never make it hard to turn off monitoring of your own accord in the individual-account flow).
+
+The backend and all API routes already exist — I'll wire those up manually. For now, build the frontend to call placeholder fetch functions against a configurable `API_BASE_URL`, structured cleanly so I can drop in the real endpoint paths afterward. Don't build authentication logic beyond calling a login/signup endpoint — assume the backend handles all of that.
+
+### Screens/pages to build
+
+- **Landing/marketing page** — brief, explains the product and philosophy in approachable language (not preachy), clear CTA to sign up as either a Guardian or an Individual.
+- **Auth** — signup/login.
+- **Onboarding wizard** — after signup: choose account type (Family Guardian vs. Personal/Individual), create the Guardian, and if Family, a step to connect a dependent account.
+- **Guardian Settings page** — strictness selector, restriction category manager (add/remove tags), custom warning/applause message editors, points-loss toggle + configurable penalty amount, on/off toggle for monitoring.
+- **Guardian Dashboard** — overview of connected dependents, their current status (monitoring active? recent flags?), and a feed of recent reports/alerts.
+- **Monitoring Session view (youth/individual-facing)** — this is where the screen-capture loop runs. Shows current points balance, session status, and handles the warning overlay / applause states described above.
+- **Rewards Store** — browsable list of rewards, current point balance, redeem flow.
+- **Reports/Alerts inbox (Guardian-facing)** — list of flagged events with timestamps and descriptions, per dependent if Family type.
+
+### Visual and UX direction
+
+- **Guardian-facing screens**: clean, calm, professional — think a well-designed admin/analytics dashboard. Legible typography, clear data hierarchy, muted confident color palette. This person needs to trust the tool, not be delighted by it.
+- **Youth/individual-facing screens**: warmer, more energetic, game-like — smooth animations on point gains, a visible streak/progress element, satisfying micro-interactions on redeeming rewards. This should feel closer to a wellness or habit-tracking app than a monitoring tool, without being childish — it needs to work for teenagers, not just young kids.
+- Both experiences should share a coherent visual identity (same type system, same core palette family) so it's clearly one product, just tuned differently per audience.
+- The warning overlay specifically needs care: it should interrupt without feeling punitive or alarming — no harsh red error-style treatment. Think a supportive nudge, not a security lockout screen.
+
+### Explicitly out of scope for now
+
+- **Do not build a mascot/character.** A future version of this product will include an animated companion character (similar in spirit to Duolingo's owl) that delivers warnings and celebrations. For now, skip this entirely — use clean text/UI states instead of any character or avatar. I'll integrate the character separately later once the interaction states are finalized.
+- Don't build real backend logic — all API routes exist and I'll wire them up.
+- Don't build a literal browser extension package — this is a web app using the Screen Capture API, as described above.
+
+# ROUTES / YTG API Reference
+
+
+Base URL used throughout: `http://localhost:8000`
+ All request bodies are JSON unless noted (the `/scan` endpoint uses multipart form data for the image upload).
+
+---
+
+## `routes/auth.py` — Authentication
+
+### `POST /auth/signup`
+Creates a new user account.
+
+```bash
+curl -X POST http://localhost:8000/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "julius",
+    "email": "julius@example.com",
+    "password": "SecurePass123!"
+  }'
+```
+
+### `POST /auth/login`
+Logs a user in with either username or email, plus password.
+
+```bash
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "julius",
+    "password": "SecurePass123!"
+  }'
+```
+
+---
+
+## `routes/user_routes.py` — Users
+
+### `GET /users/`
+Lists all users.
+
+```bash
+curl http://localhost:8000/users/
+```
+
+### `GET /users/{user_id}`
+Fetches a single user by ID.
+
+```bash
+curl http://localhost:8000/users/USER_ID_HERE
+```
+
+### `PATCH /users/{user_id}/name`
+Updates a user's display name.
+
+```bash
+curl -X PATCH http://localhost:8000/users/USER_ID_HERE/name \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_name": "Julius M."
+  }'
+```
+
+### `PUT /users/{user_id}/password`
+Changes a user's password.
+
+```bash
+curl -X PUT http://localhost:8000/users/USER_ID_HERE/password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_password": "NewSecurePass456!"
+  }'
+```
+
+### `DELETE /users/{user_id}`
+Deletes a user account.
+
+```bash
+curl -X DELETE http://localhost:8000/users/USER_ID_HERE
+```
+
+### `GET /users/guardian/{guardian_id}`
+Lists all users connected to a given Guardian (e.g. all offspring/dependents under one family Guardian).
+
+```bash
+curl http://localhost:8000/users/guardian/GUARDIAN_ID_HERE
+```
+
+---
+
+## `routes/guardians_routes.py` — Guardians
+
+### `GET /guardians/`
+Lists all Guardians in the system.
+
+```bash
+curl http://localhost:8000/guardians/
+```
+
+### `POST /guardians/create`
+Creates a new Guardian (the container that activates supervision — family or personal).
+
+```bash
+curl -X POST http://localhost:8000/guardians/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "owner_id": "USER_ID_HERE",
+    "name": "The Smith Household",
+    "guardian_type": "family"
+  }'
+```
+`guardian_type` accepts `"family"` or `"personal"`.
+
+### `GET /guardians/{guardian_id}`
+Fetches a single Guardian by ID.
+
+```bash
+curl http://localhost:8000/guardians/GUARDIAN_ID_HERE
+```
+
+### `GET /guardians/owner/{user_id}`
+Fetches the Guardian owned by a given user.
+
+```bash
+curl http://localhost:8000/guardians/owner/USER_ID_HERE
+```
+
+### `DELETE /guardians/{guardian_id}`
+Deletes a Guardian.
+
+```bash
+curl -X DELETE http://localhost:8000/guardians/GUARDIAN_ID_HERE
+```
+
+### `GET /guardians/{guardian_id}/connections`
+Lists everyone connected to a Guardian (offspring, friends, supervisors — see `RelationshipType`).
+
+```bash
+curl http://localhost:8000/guardians/GUARDIAN_ID_HERE/connections
+```
+
+### `POST /guardians/{guardian_id}/connections/add`
+Connects a user to a Guardian with a given relationship type.
+
+```bash
+curl -X POST http://localhost:8000/guardians/GUARDIAN_ID_HERE/connections/add \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "USER_ID_HERE",
+    "relationship": "offspring"
+  }'
+```
+`relationship` accepts `"offspring"`, `"friend"`, `"supervisor"`, or `"owner"`.
+
+### `DELETE /guardians/{guardian_id}/connections/{user_id}`
+Removes a user's connection to a Guardian.
+
+```bash
+curl -X DELETE http://localhost:8000/guardians/GUARDIAN_ID_HERE/connections/USER_ID_HERE
+```
+
+### `PUT /guardians/{guardian_id}/code`
+Sets/changes the Guardian's access code (e.g. used to link a device or unlock settings).
+
+```bash
+curl -X PUT http://localhost:8000/guardians/GUARDIAN_ID_HERE/code \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": 483920
+  }'
+```
+
+### `POST /{guardian_id}/restrictions/add`
+Add a restriction currently in the agents restrictions.
+restrictions are the content the owner wants to avoid. The guardian should send warnings whenever content that falls into any restrictions is shown.
+
+```bash
+curl -X POST http://localhost:8000/guardians/GUARDIAN_ID_HERE/restrictions/add \
+  -H "Content-Type: application/json" \
+  -d '{
+    "restriction": "politics"
+  }'
+```
+
+### `POST /{guardian_id}/restrictions/remove`
+Remove a restriction currently in the agents restrictions.
+restrictions are the content the owner wants to avoid. The guardian should send warnings whenever content that falls into any restrictions is shown.
+
+```bash
+curl -X POST http://localhost:8000/guardians/GUARDIAN_ID_HERE/restrictions/remove \
+  -H "Content-Type: application/json" \
+  -d '{
+    "restriction": "politics"
+  }'
+```
+
+### `GET /guardians/{guardian_id}/settings`
+Fetches (or creates, if missing) the Guardian's settings — strictness, language, custom messages.
+
+```bash
+curl http://localhost:8000/guardians/GUARDIAN_ID_HERE/settings
+```
+
+### `PATCH /guardians/{guardian_id}/settings/update`
+Updates one or more Guardian settings fields. All fields optional — send only what's changing.
+
+```bash
+curl -X PATCH http://localhost:8000/guardians/GUARDIAN_ID_HERE/settings/update \
+  -H "Content-Type: application/json" \
+  -d '{
+    "strictness": "harsh",
+    "language": "en",
+    "warning_message": "Please avoid this type of content honey",
+    "applause_message": "Good job! Proud of you for skipping that."
+  }'
+```
+
+### `GET /guardians/reports/{given_id}`
+Fetches guardian reports either by Guardian ID or by owner (user) ID — tries Guardian first, falls back to owner.
+
+```bash
+curl http://localhost:8000/guardians/reports/GUARDIAN_OR_OWNER_ID_HERE
+```
+
+---
+
+## `routes/session_routes.py` — Guardian Sessions
+
+A **GuardianSession** is the live, per-user monitoring session — it holds the warning/timer state and pending points for one user under one Guardian.
+
+### `GET /sessions/`
+Lists all sessions.
+
+```bash
+curl http://localhost:8000/sessions/
+```
+
+## `POST /{guardian_id}/on`
+Turns on the guardian, which automatically creates sessions for the users who are connected with the guardian
+
+```bash
+curl http://localhost:8000/GUARDIAN_ID_HERE/on
+```
+
+
+## `POST /{guardian_id}/off`
+Turns off the guardian, which deletes all concurring sessions under the guardian/ 
+
+```bash
+curl http://localhost:8000/GUARDIAN_ID_HERE/off
+```
+
+### `POST /sessions/create`
+Gets the existing session for a user+Guardian pair, or creates one if it doesn't exist yet. Call this once when the extension/app starts watching.
+
+```bash
+curl -X POST http://localhost:8000/sessions/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "USER_ID_HERE",
+    "guardian_id": "GUARDIAN_ID_HERE"
+  }'
+```
+
+### `GET /sessions/{session_id}`
+Fetches a single session by ID — use this for cheap polling of current state (warning active? timer running?) without uploading a new screenshot.
+
+```bash
+curl http://localhost:8000/sessions/SESSION_ID_HERE
+```
+
+### `GET /sessions/guardian/{guardian_id}`
+Lists all active sessions under a given Guardian (e.g. all currently-monitored dependents at once, for a parent dashboard).
+
+```bash
+curl http://localhost:8000/sessions/guardian/GUARDIAN_ID_HERE
+```
+
+### `DELETE /sessions/{session_id}`
+Deletes/ends a session (e.g. on logout or after a period of inactivity).
+
+```bash
+curl -X DELETE http://localhost:8000/sessions/SESSION_ID_HERE
+```
+
+### `POST /sessions/{session_id}/scan` — core monitoring loop
+Uploads a screenshot for classification. This is the endpoint the extension calls every 5-10s. **Multipart form data, not JSON** — the image goes in a `file` field.
+
+```bash
+curl -X POST http://localhost:8000/sessions/SESSION_ID_HERE/scan \
+  -F "file=@/path/to/screenshot.png"
+```
+
+Response shape:
+```json
+{
+  "flagged": true,
+  "description": "A social media post referencing restricted content.",
+  "warning_active": true,
+  "points_awarded": false
+}
+```
+
+### `POST /sessions/{session_id}/events`
+Manually adds an event to a session's event log (mostly for testing — in normal flow, `/scan` adds events automatically when content is flagged).
+
+```bash
+curl -X POST http://localhost:8000/sessions/SESSION_ID_HERE/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Test event for manual QA",
+    "time_duration": 180
+  }'
+```
+`time_duration` is optional — omit it to get a randomized 140-300s duration.
+
+### `POST /sessions/{session_id}/flush`
+Converts all pending events on a session into permanent `GuardianReport`s (visible to the owner) and clears the session's event log. Call this when the guardian views their alert inbox, or periodically.
+
+```bash
+curl -X POST http://localhost:8000/sessions/SESSION_ID_HERE/flush
+```
+
+---
+
+## `routes/gamify_routes.py` — Points & Rewards
+
+### `PUT /gameify/users/{user_id}/points`
+Sets a user's point balance to an exact value (overwrite, not add).
+
+```bash
+curl -X PUT http://localhost:8000/gameify/users/USER_ID_HERE/points \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 500
+  }'
+```
+
+### `POST /gameify/users/{user_id}/points/add`
+Adds points to a user's balance (e.g. after a successful avoidance timer completes).
+
+```bash
+curl -X POST http://localhost:8000/gameify/users/USER_ID_HERE/points/add \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 10
+  }'
+```
+
+### `POST /gameify/users/{user_id}/points/remove`
+Deducts points from a user's balance.
+
+```bash
+curl -X POST http://localhost:8000/gameify/users/USER_ID_HERE/points/remove \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 50
+  }'
+```
+
+### `GET /gameify/rewards`
+Lists all rewards available in the store.
+
+```bash
+curl http://localhost:8000/gameify/rewards
+```
+
+### `GET /gameify/rewards/{reward_id}`
+Fetches a single reward by ID.
+
+```bash
+curl http://localhost:8000/gameify/rewards/REWARD_ID_HERE
+```
+
+### `POST /gameify/rewards`
+Creates a new reward in the store (admin/seeding endpoint).
+
+```bash
+curl -X POST http://localhost:8000/gameify/rewards \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Dunkin Gift Card",
+    "reward_amount": 20,
+    "reward_cost": 2500,
+    "reward_type": "gift_card"
+  }'
+```
+
+### `POST /gameify/users/{user_id}/rewards/buy`
+Spends a user's points to purchase a reward.
+
+```bash
+curl -X POST http://localhost:8000/gameify/users/USER_ID_HERE/rewards/buy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reward_id": "REWARD_ID_HERE"
+  }'
+```
+
+### `POST /gameify/users/{user_id}/rewards/refund`
+Refunds a previously purchased reward back to points (partial refund, per the `Gameify.refund_reward` logic).
+
+```bash
+curl -X POST http://localhost:8000/gameify/users/USER_ID_HERE/rewards/refund \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reward_id": "REWARD_ID_HERE"
+  }'
+```
+
+---
+
+## Suggested end-to-end test sequence
+
+A realistic order to exercise the whole system manually:
+
+1. `POST /auth/signup` → get a `user_id`
+2. `POST /guardians/` (with `owner_id` = that user) → get a `guardian_id`
+3. `POST /guardians/{guardian_id}/connections/add` → connect a second user as `"offspring"` if testing a family flow
+4. `PATCH /guardians/{guardian_id}/settings/update` → set strictness/messages/points penalty check
+
+current settings, its value, and description on its usage:
+    *   strictness (string): How strict the agent should be with its responses and points system
+        class StrictnessLevel(Enum):
+            WEAK = "weak"
+            NORMAL = "normal"
+            HARSH = "harsh"
+
+    *   language (string): Field(default=AvailableLanguages.ENGLISH.value), available languages
+        class AvailableLanguages(Enum):
+            ENGLISH = "en"
+            SPANISH = "es"
+            FRENCH = "fr"
+            GERMAN = "de"
+            ITALIAN = "it"
+            PORTUGUESE = "pt"
+            DUTCH = "nl"
+            RUSSIAN = "ru"
+            CHINESE = "zh"
+            JAPANESE = "ja"
+            KOREAN = "ko"
+
+    *   custom_warning_messages (dict): 
+        Two values 
+        ```json
+        {"warning": "warning message for content that deems harmful by owner demands", 
+        "applause": "Message to applause the user if they listened to the warning"}
+        ```
+        
+        The owner can edit the messages as an act of encoragement
+
+    *   points_loss_enabled (boolean): whether the user loses points or not
+
+    *   base_points_lost (number): The owner has control on how many points are lost
+
+5. `POST /{guardian_id}/restrictions/add` → The owner sets restrictions for the guardian to detect
+6. `POST /sessions/{guardian_id}/on` → start the agent, this creates sessions for users who are connected with the guradian
+
+7. `POST /sessions/{session_id}/scan` → upload a test screenshot, see if it flags
+8. `GET /sessions/{session_id}` → poll state
+9. `POST /sessions/{session_id}/flush` → push any logged events into reports
+10. `GET /guardians/reports/{guardian_id}` → confirm the report shows up
+11. `POST /gameify/users/{user_id}/points/add` → simulate a completed avoidance timer. If points penalty check is true in guardian settings and the user is still viewing restricted content, the user loses point with the route `POST /gameify/users/{user_id}/points/remove`
+12. `GET /gameify/rewards` → browse the store
+13. `POST /gameify/users/{user_id}/rewards/buy` → spend points
+14. `POST /sessions/{guardian_id}/off` → A guardian can stay on for long periods, 
+but if the owner decides its the end of the cycle they can turn off the guardian which deletes 
+all concurring sessions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { AppShell } from "@/components/AppShell";
+import { useScanLoop, type ScanResult } from "@/hooks/useScanLoop";
+import { Button } from "@/components/ui/button";
+import { api, localSession } from "@/lib/api";
+import { toast } from "sonner";
+import { Play, Square, Sparkles, ShieldAlert, Trophy, Flame } from "lucide-react";
+
+export const Route = createFileRoute("/guardian/monitor")({
+  head: () => ({ meta: [{ title: "Session — YTG" }] }),
+  component: Monitor,
+});
+
+function Monitor() {
+  const nav = useNavigate();
+  const [points, setPoints] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [pointsPop, setPointsPop] = useState(0);
+  const [applauding, setApplauding] = useState(false);
+  const [guardianMsgs, setGuardianMsgs] = useState({
+    warning: "Please skip this one for me, okay?",
+    applause: "Proud of you for moving past that ❤️",
+  });
+
+  const session = typeof window !== "undefined" ? localSession.get() : null;
+
+  useEffect(() => {
+    if (!session) nav({ to: "/auth" });
+    else setPoints(session.points || 120);
+  }, [session, nav]);
+
+  useEffect(() => {
+    (async () => {
+      if (!session?.guardian_id) return;
+      try {
+        const s: any = await api.getSettings(session.guardian_id);
+        setGuardianMsgs((prev) => ({
+          warning: s?.custom_warning_messages?.warning || prev.warning,
+          applause: s?.custom_warning_messages?.applause || prev.applause,
+        }));
+      } catch {}
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleResult(r: ScanResult) {
+    if (r.points_awarded) {
+      setApplauding(true);
+      setPoints((p) => p + 10);
+      setStreak((s) => s + 1);
+      setPointsPop((n) => n + 1);
+      if (session) api.addPoints(session.user_id, 10).catch(() => {});
+      setTimeout(() => setApplauding(false), 2200);
+    }
+  }
+
+  const { videoRef, canvasRef, start, stop, running, state, description } = useScanLoop({
+    userId: session?.user_id || "",
+    guardianId: session?.guardian_id || session?.user_id || "",
+    intervalMs: 5000,
+    onResult: handleResult,
+  });
+
+  async function handleStart() {
+    try {
+      await start();
+    } catch {
+      toast.error("Screen share is required to start a session.");
+    }
+  }
+
+  const displayState = applauding ? "applause" : state;
+
+  return (
+    <AppShell variant="individual">
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Points</div>
+          <div className="relative mt-2 font-display text-4xl font-semibold">
+            {points.toLocaleString()}
+            {pointsPop > 0 && (
+              <span
+                key={pointsPop}
+                className="animate-points-pop absolute -right-2 top-0 text-lg font-semibold text-success"
+              >
+                +10
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            <Flame className="h-3 w-3" /> Streak
+          </div>
+          <div className="mt-2 font-display text-4xl font-semibold">{streak}</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Session</div>
+          <div className="mt-2 flex items-center gap-2 font-medium">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                running ? "bg-success animate-soft-pulse" : "bg-muted-foreground/40"
+              }`}
+            />
+            {running ? "Watching" : "Paused"}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-border bg-card p-8">
+        {!running ? (
+          <div className="flex flex-col items-center gap-4 py-8 text-center">
+            <Sparkles className="h-8 w-8 text-primary" />
+            <h2 className="font-display text-2xl">Ready when you are</h2>
+            <p className="max-w-md text-sm text-muted-foreground">
+              YTG will ask permission to view your screen. Every 5 seconds it takes a quiet look and
+              cheers you on when you keep good habits.
+            </p>
+            <Button size="lg" onClick={handleStart}>
+              <Play className="mr-2 h-4 w-4" /> Start session
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-4 py-6 text-center">
+            {displayState === "clear" && (
+              <>
+                <div className="text-4xl">✨</div>
+                <div className="font-display text-xl">All good. Keep going.</div>
+                <p className="text-sm text-muted-foreground">Checking every 5 seconds.</p>
+              </>
+            )}
+            {displayState === "cooldown" && (
+              <>
+                <div className="text-4xl">🌿</div>
+                <div className="font-display text-xl">Nice — you moved on.</div>
+                <p className="text-sm text-muted-foreground">Confirming a full 5 seconds…</p>
+              </>
+            )}
+            {displayState === "applause" && (
+              <div className="rounded-2xl bg-success/15 px-6 py-6">
+                <Trophy className="mx-auto h-8 w-8 text-success" />
+                <div className="mt-3 font-display text-2xl">+10 points</div>
+                <p className="mt-1 text-sm text-success-foreground">{guardianMsgs.applause}</p>
+              </div>
+            )}
+            {displayState === "warning" && (
+              <div className="w-full rounded-2xl bg-warm/40 p-6 text-warm-foreground">
+                <ShieldAlert className="mx-auto h-8 w-8" />
+                <div className="mt-3 font-display text-2xl">A gentle nudge</div>
+                <p className="mt-2 text-sm">{guardianMsgs.warning}</p>
+                {description && (
+                  <p className="mt-2 text-xs opacity-80">Detected: {description}</p>
+                )}
+              </div>
+            )}
+
+            <Button variant="outline" onClick={stop}>
+              <Square className="mr-2 h-4 w-4" /> Stop session
+            </Button>
+          </div>
+        )}
+        <video ref={videoRef} className="hidden" muted playsInline />
+        <canvas ref={canvasRef} className="hidden" />
+      </div>
+
+      <p className="mt-4 text-center text-xs text-muted-foreground">
+        You can stop the session any time — YTG never watches without your consent.
+      </p>
+    </AppShell>
+  );
+}

@@ -1,0 +1,135 @@
+{
+  "posts": [
+    {
+      "post_id": "post-101",
+      "poster": "user-88219",
+      "description": "Look at these people just existing on the subway, minding their own business. Absolutely wild.",
+      "date-posted": "2026-08-07"
+    },
+    {
+      "post_id": "post-102",
+      "poster": "user-10492",
+      "description": "Just launched my new open-source Python library for real-time sentiment analysis! Check it out and let me know your thoughts.",
+      "date-posted": "2026-08-07"
+    },
+    {
+      "post_id": "post-103",
+      "poster": "user-44012",
+      "description": "Unpopular opinion: mechanical keyboards are way too loud for open office spaces.",
+      "date-posted": "2026-08-06"
+    },
+    {
+      "post_id": "post-104",
+      "poster": "user-99301",
+      "description": "Trying out this new recipe for homemade ramen. Took 8 hours to simmer the broth!",
+      "date-posted": "2026-08-05"
+    },
+    {
+      "post_id": "post-105",
+      "poster": "user-382033",
+      "description": "Sub humans fighting eachother",
+      "date-posted": "2026-08-02"
+    },
+    {
+      "post_id": "post-106",
+      "poster": "user-149421",
+      "description": "Kill all of them.",
+      "date-posted": "2026-08-07"
+    }
+  ],
+  "comments": [
+    {
+      "comment_id": "comm-001",
+      "commenter": "user-55102",
+      "content": "I hate those type of people theyre so ugly",
+      "post": "post-101",
+      "date-posted": "2026-08-07",
+      "replies": [
+        "fr I hate them!",
+        "Youre a loser",
+        "Why bring so much negative energy here?"
+      ]
+    },
+    {
+      "comment_id": "comm-002",
+      "commenter": "user-77319",
+      "content": "ew",
+      "post": "post-101",
+      "date-posted": "2026-08-07",
+      "replies": [
+        "huh?",
+        "Post a picture of yourself then"
+      ]
+    },
+    {
+      "comment_id": "comm-003",
+      "commenter": "user-12844",
+      "content": "Honestly they're just living their lives, leave them alone lol",
+      "post": "post-101",
+      "date-posted": "2026-08-07",
+      "replies": [
+        "Exactly, people love hating for no reason."
+      ]
+    },
+    {
+      "comment_id": "comm-004",
+      "commenter": "user-90012",
+      "content": "Awesome project! Does it support asynchronous processing or streaming text inputs?",
+      "post": "post-102",
+      "date-posted": "2026-08-07",
+      "replies": [
+        "Yes! Asynchronous processing was added in v1.1."
+      ]
+    },
+    {
+      "comment_id": "comm-005",
+      "commenter": "user-00192",
+      "content": "MAKE $5000 A DAY WORKING FROM HOME!! CLICK THIS LINK NOW NO CAP ---> http://totally-not-a-scam.fake/claim",
+      "post": "post-102",
+      "date-posted": "2026-08-07",
+      "replies": [
+        "Bot account, mods please ban."
+      ]
+    },
+    {
+      "comment_id": "comm-006",
+      "commenter": "user-66231",
+      "content": "You're completely wrong. If you don't like loud switches just wear noise-canceling headphones.",
+      "post": "post-103",
+      "date-posted": "2026-08-06",
+      "replies": [
+        "Or just use silent linear switches?",
+        "No, OP is right, blue switches in an office are direct aggression."
+      ]
+    },
+    {
+      "comment_id": "comm-007",
+      "commenter": "user-33104",
+      "content": "That broth looks super cloudy and nasty ngl.",
+      "post": "post-104",
+      "date-posted": "2026-08-05",
+      "replies": [
+        "That's literally what tonkotsu broth is supposed to look like..."
+      ]
+    },
+    {
+      "comment_id": "comm-008",
+      "commenter": "user-88412",
+      "content": "Looks incredible! Mind sharing the exact ingredient breakdown for the tare?",
+      "post": "post-104",
+      "date-posted": "2026-08-05",
+      "replies": []
+    },
+    {
+      "comment_id": "comm-009",
+      "commenter": "user-98475",
+      "content": "<Really bad slur>",
+      "post": "post-104",
+      "date-posted": "2026-08-05",
+      "replies": [
+        "how did this not get a violation?",
+        "why would you say this?"
+      ]
+    }
+  ]
+}

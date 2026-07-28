@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Real Website - Hover Agent Supervision</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --card-hover: #24334a;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 24px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 680px;
+        }
+
+        header {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand h1 {
+            font-size: 1.6rem;
+            color: var(--accent);
+        }
+
+        .brand p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 2px;
+        }
+
+        .agent-status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--success);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        /* POST CARD STYLES WITH HOVER HIGHLIGHT */
+        .post-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .post-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+        }
+
+        .hover-indicator {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            background: rgba(0,0,0,0.3);
+            padding: 3px 8px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .post-card:hover > .hover-indicator {
+            opacity: 1;
+            color: var(--warning);
+        }
+
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .poster-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85rem;
+            color: #fff;
+        }
+
+        .poster-handle {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .post-date {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .post-description {
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #e2e8f0;
+            margin-bottom: 16px;
+        }
+
+        .media-placeholder {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+
+        /* COMMENTS SECTION WITH HOVER INSPECTION */
+        .comments-container {
+            background-color: rgba(15, 23, 42, 0.5);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .comments-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .comment-item {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            transition: border-color 0.15s ease;
+        }
+
+        .comment-item:hover {
+            border-color: var(--warning);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .commenter-handle {
+            font-weight: 600;
+            color: var(--accent);
+            font-size: 0.85rem;
+        }
+
+        .comment-content {
+            color: #cbd5e1;
+            line-height: 1.4;
+        }
+
+        .replies-list {
+            margin-top: 8px;
+            padding-left: 12px;
+            border-left: 2px solid var(--border);
+        }
+
+        .reply-item {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .add-comment-box {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .add-comment-box input {
+            flex: 1;
+            background: var(--bg-color);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #fff;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .add-comment-box input:focus {
+            border-color: var(--accent);
+        }
+
+        .add-comment-box button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* LIVE TERMINAL LOG */
+        .agent-log {
+            margin-top: 32px;
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.8rem;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .agent-log-header {
+            color: var(--text-muted);
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .log-entry {
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #1e293b;
+            color: #a7f3d0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="brand">
+            <h1>A real website</h1>
+            <p>Hover-Triggered Agent Supervision</p>
+        </div>
+        <div class="agent-status-badge">
+            <div class="pulse-dot"></div>
+            Hover Tracking Active
+        </div>
+    </header>
+
+    <main id="feed"></main>
+
+    <div class="agent-log">
+        <div class="agent-log-header">
+            <span>🤖 AGENT INGESTION LOG</span>
+            <span style="font-weight: normal; font-size: 0.75rem;">Backend Endpoint: /api/supervise</span>
+        </div>
+        <div id="log-output">
+            <div class="log-entry" style="color: var(--text-muted);">Hover over any post or comment to send payload...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+const feedData = {
+  "posts": [
+    {
+      "post_id": "post-101",
+      "poster": "user-88219",
+      "description": "Look at these people just existing on the subway, minding their own business. Absolutely wild.",
+      "date-posted": "2026-08-07"
+    },
+    {
+      "post_id": "post-102",
+      "poster": "user-10492",
+      "description": "Just launched my new open-source Python library for real-time sentiment analysis! Check it out and let me know your thoughts.",
+      "date-posted": "2026-08-07"
+    },
+    {
+      "post_id": "post-103",
+      "poster": "user-44012",
+      "description": "Unpopular opinion: mechanical keyboards are way too loud for open office spaces.",
+      "date-posted": "2026-08-06"
+    },
+    {
+      "post_id": "post-104",
+      "poster": "user-99301",
+      "description": "Trying out this new recipe for homemade ramen. Took 8 hours to simmer the broth!",
+      "date-posted": "2026-08-05"
+    },
+    {
+      "post_id": "post-105",
+      "poster": "user-382033",
+      "description": "Sub humans fighting eachother",
+      "date-posted": "2026-08-02"
+    },
+    {
+      "post_id": "post-106",
+      "poster": "user-149421",
+      "description": "Kill all of them.",
+      "date-posted": "2026-08-07"
+    }
+  ],
+  "comments": [
+    {
+      "comment_id": "comm-001",
+      "commenter": "user-55102",
+      "content": "I hate those type of people theyre so ugly",
+      "post": "post-101",
+      "date-posted": "2026-08-07",
+      "replies": ["fr I hate them!", "Youre a loser"]
+    },
+    {
+      "comment_id": "comm-002",
+      "commenter": "user-77319",
+      "content": "ew",
+      "post": "post-101",
+      "date-posted": "2026-08-07",
+      "replies": ["huh?"]
+    },
+    {
+      "comment_id": "comm-003",
+      "commenter": "user-12844",
+      "content": "Honestly they're just living their lives, leave them alone lol",
+      "post": "post-101",
+      "date-posted": "2026-08-07",
+      "replies": []
+    },
+    {
+      "comment_id": "comm-004",
+      "commenter": "user-90012",
+      "content": "Awesome project! Does it support asynchronous processing or streaming text inputs?",
+      "post": "post-102",
+      "date-posted": "2026-08-07",
+      "replies": []
+    },
+    {
+      "comment_id": "comm-005",
+      "commenter": "user-00192",
+      "content": "MAKE $5000 A DAY WORKING FROM HOME!! CLICK THIS LINK NOW NO CAP ---> http://totally-not-a-scam.fake/claim",
+      "post": "post-102",
+      "date-posted": "2026-08-07",
+      "replies": []
+    },
+    {
+      "comment_id": "comm-006",
+      "commenter": "user-66231",
+      "content": "You're completely wrong. If you don't like loud switches just wear noise-canceling headphones.",
+      "post": "post-103",
+      "date-posted": "2026-08-06",
+      "replies": []
+    },
+    {
+      "comment_id": "comm-007",
+      "commenter": "user-33104",
+      "content": "That broth looks super cloudy and nasty ngl.",
+      "post": "post-104",
+      "date-posted": "2026-08-05",
+      "replies": []
+    },
+    {
+      "comment_id": "comm-008",
+      "commenter": "user-88412",
+      "content": "Looks incredible! Mind sharing the exact ingredient breakdown for the tare?",
+      "post": "post-104",
+      "date-posted": "2026-08-05",
+      "replies": []
+    },
+    {
+      "comment_id": "comm-009",
+      "commenter": "user-98475",
+      "content": "<Really bad slur>",
+      "post": "post-104",
+      "date-posted": "2026-08-05",
+      "replies": ["how did this not get a violation?"]
+    }
+  ]
+};
+
+// Track sent IDs to avoid spamming the backend repeatedly on accidental re-hovers
+const sentPayloads = new Set();
+let hoverTimer = null;
+
+async function sendToAgent(type, author, content, postId, payloadUniqueKey) {
+    // Avoid re-sending if already inspected in this session
+    if (sentPayloads.has(payloadUniqueKey)) return;
+    sentPayloads.add(payloadUniqueKey);
+
+    const payload = {
+        content_type: type,
+        author: author,
+        text: content,
+        post_id: postId,
+        timestamp: new Date().toISOString()
+    };
+
+    // Log to frontend debug box
+    const logBox = document.getElementById("log-output");
+    const logEntry = document.createElement("div");
+    logEntry.className = "log-entry";
+    logEntry.innerText = `[${new Date().toLocaleTimeString()}] HOVER DETECTED (${type.toUpperCase()}): "${content.substring(0, 45)}${content.length > 45 ? '...' : ''}"`;
+    logBox.prepend(logEntry);
+
+    // Send HTTP POST request to Python FastAPI endpoint
+    try {
+        await fetch("/api/supervise", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+    } catch (e) {
+        console.log("Agent backend offline or running locally without backend.");
+    }
+}
+
+// Debounced Hover Handler (Triggers after 200ms hover duration)
+function handleHover(type, author, content, postId, payloadKey) {
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => {
+        sendToAgent(type, author, content, postId, payloadKey);
+    }, 200); // 200ms delay ensures rapid mouse movements across the screen don't trigger unnecessary requests
+}
+
+function cancelHover() {
+    clearTimeout(hoverTimer);
+}
+
+function renderFeed() {
+    const feedContainer = document.getElementById("feed");
+    feedContainer.innerHTML = "";
+
+    feedData.posts.forEach(post => {
+        const postComments = feedData.comments.filter(c => c.post === post.post_id);
+
+        const postCard = document.createElement("article");
+        postCard.className = "post-card";
+        postCard.id = post.post_id;
+
+        // Hover listener for the main post description
+        postCard.onmouseenter = () => handleHover("post_description", post.poster, post.description, post.post_id, `post-${post.post_id}`);
+        postCard.onmouseleave = cancelHover;
+
+        let commentsHtml = "";
+        postComments.forEach(comm => {
+            let repliesHtml = "";
+            if (comm.replies && comm.replies.length > 0) {
+                repliesHtml = `<div class="replies-list">` + 
+                    comm.replies.map(r => `<div class="reply-item">↳ <b>Reply:</b> ${r}</div>`).join('') +
+                    `</div>`;
+            }
+
+            commentsHtml += `
+                <div class="comment-item" 
+                     id="${comm.comment_id}"
+                     onmouseenter="event.stopPropagation(); handleHover('comment', '${comm.commenter}', \`${comm.content.replace(/`/g, '\\`')}\`, '${post.post_id}', 'comm-${comm.comment_id}')"
+                     onmouseleave="cancelHover()">
+                    <div class="comment-header">
+                        <span class="commenter-handle">@${comm.commenter}</span>
+                        <span class="post-date">${comm['date-posted']}</span>
+                    </div>
+                    <div class="comment-content">${comm.content}</div>
+                    ${repliesHtml}
+                </div>
+            `;
+        });
+
+        postCard.innerHTML = `
+            <div class="hover-indicator">🔍 Hovering (Sending to Agent)</div>
+            <div class="post-header">
+                <div class="poster-info">
+                    <div class="avatar">${post.poster.substring(5, 7)}</div>
+                    <div>
+                        <div class="poster-handle">@${post.poster}</div>
+                        <div class="post-date">${post['date-posted']} • ID: ${post.post_id}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="post-description">${post.description}</div>
+            
+            <div class="media-placeholder">
+                [ Attached Video / Media Content ]
+            </div>
+
+            <div class="comments-container">
+                <div class="comments-title">Comments (${postComments.length})</div>
+                <div id="comments-list-${post.post_id}">
+                    ${commentsHtml || '<div style="color: var(--text-muted); font-size: 0.85rem;">No comments yet.</div>'}
+                </div>
+                
+                <div class="add-comment-box">
+                    <input type="text" id="input-${post.post_id}" placeholder="Write a comment..." />
+                    <button onclick="addComment('${post.post_id}')">Comment</button>
+                </div>
+            </div>
+        `;
+
+        feedContainer.appendChild(postCard);
+    });
+}
+
+function addComment(postId) {
+    const input = document.getElementById(`input-${postId}`);
+    const text = input.value.trim();
+    if (!text) return;
+
+    const commenter = "user-guest";
+    const commentId = `comm-${Date.now().toString().slice(-4)}`;
+    const datePosted = new Date().toISOString().split('T')[0];
+
+    const newCommentObj = {
+        "comment_id": commentId,
+        "commenter": commenter,
+        "content": text,
+        "post": postId,
+        "date-posted": datePosted,
+        "replies": []
+    };
+
+    feedData.comments.push(newCommentObj);
+
+    // Re-render comments
+    renderFeed();
+    
+    // Instantly send newly created comments to agent
+    sendToAgent("comment", commenter, text, postId, `comm-${commentId}`);
+}
+
+document.addEventListener("DOMContentLoaded", renderFeed);
+</script>
+
+</body>
+</html>

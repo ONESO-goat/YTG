@@ -65,20 +65,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "YTG — Your Truest Guardian" },
+      { title: "YTG — Build the habit of walking away" },
       {
         name: "description",
         content:
-          "A gentle, gamified screen companion that helps you and your family build the habit of walking away from harmful content — with rewards, not punishment.",
+          "YTG is a gentle, gamified companion that helps young people and adults recognize harmful content and choose to step back — reinforced with rewards, not punishment.",
       },
-      { property: "og:title", content: "YTG — Your Truest Guardian" },
+      { property: "og:title", content: "YTG — Build the habit of walking away" },
       {
         property: "og:description",
         content:
-          "A gentle, gamified screen companion that helps you and your family build the habit of walking away from harmful content.",
+          "YTG is a gentle, gamified companion that helps young people and adults recognize harmful content and choose to step back — reinforced with rewards, not punishment.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "YTG — Build the habit of walking away" },
+      { name: "twitter:description", content: "YTG is a gentle, gamified companion that helps young people and adults recognize harmful content and choose to step back — reinforced with rewards, not punishment." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/134d12bd-fe65-4503-b9e0-2e7b71754912/id-preview-831394f6--ae0181df-91b7-4bf5-9741-bae321885620.lovable.app-1785335095693.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/134d12bd-fe65-4503-b9e0-2e7b71754912/id-preview-831394f6--ae0181df-91b7-4bf5-9741-bae321885620.lovable.app-1785335095693.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

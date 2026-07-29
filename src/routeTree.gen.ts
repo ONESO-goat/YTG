@@ -9,24 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ShopRouteImport } from './routes/shop'
-import { Route as GuardianCreateRouteImport } from './routes/guardian/create'
-import { Route as GuardianDashboardRouteImport } from './routes/guardian/dashboard'
-import { Route as GuardianMonitorRouteImport } from './routes/guardian/monitor'
-import { Route as GuardianReportsRouteImport } from './routes/guardian/reports'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as GuardianSettingsRouteImport } from './routes/guardian/settings'
+import { Route as GuardianReportsRouteImport } from './routes/guardian/reports'
+import { Route as GuardianMonitorRouteImport } from './routes/guardian/monitor'
+import { Route as GuardianDashboardRouteImport } from './routes/guardian/dashboard'
+import { Route as GuardianCreateRouteImport } from './routes/guardian/create'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const ShopRoute = ShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -34,24 +29,19 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShopRoute = ShopRouteImport.update({
-  id: '/shop',
-  path: '/shop',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GuardianCreateRoute = GuardianCreateRouteImport.update({
-  id: '/guardian/create',
-  path: '/guardian/create',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GuardianDashboardRoute = GuardianDashboardRouteImport.update({
-  id: '/guardian/dashboard',
-  path: '/guardian/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuardianMonitorRoute = GuardianMonitorRouteImport.update({
-  id: '/guardian/monitor',
-  path: '/guardian/monitor',
+const GuardianSettingsRoute = GuardianSettingsRouteImport.update({
+  id: '/guardian/settings',
+  path: '/guardian/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuardianReportsRoute = GuardianReportsRouteImport.update({
@@ -59,9 +49,19 @@ const GuardianReportsRoute = GuardianReportsRouteImport.update({
   path: '/guardian/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GuardianSettingsRoute = GuardianSettingsRouteImport.update({
-  id: '/guardian/settings',
-  path: '/guardian/settings',
+const GuardianMonitorRoute = GuardianMonitorRouteImport.update({
+  id: '/guardian/monitor',
+  path: '/guardian/monitor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuardianDashboardRoute = GuardianDashboardRouteImport.update({
+  id: '/guardian/dashboard',
+  path: '/guardian/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuardianCreateRoute = GuardianCreateRouteImport.update({
+  id: '/guardian/create',
+  path: '/guardian/create',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -149,18 +149,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/shop': {
+      id: '/shop'
+      path: '/shop'
+      fullPath: '/shop'
+      preLoaderRoute: typeof ShopRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -170,32 +163,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/shop': {
-      id: '/shop'
-      path: '/shop'
-      fullPath: '/shop'
-      preLoaderRoute: typeof ShopRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/guardian/create': {
-      id: '/guardian/create'
-      path: '/guardian/create'
-      fullPath: '/guardian/create'
-      preLoaderRoute: typeof GuardianCreateRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/guardian/dashboard': {
-      id: '/guardian/dashboard'
-      path: '/guardian/dashboard'
-      fullPath: '/guardian/dashboard'
-      preLoaderRoute: typeof GuardianDashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guardian/monitor': {
-      id: '/guardian/monitor'
-      path: '/guardian/monitor'
-      fullPath: '/guardian/monitor'
-      preLoaderRoute: typeof GuardianMonitorRouteImport
+    '/guardian/settings': {
+      id: '/guardian/settings'
+      path: '/guardian/settings'
+      fullPath: '/guardian/settings'
+      preLoaderRoute: typeof GuardianSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guardian/reports': {
@@ -205,11 +191,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuardianReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/guardian/settings': {
-      id: '/guardian/settings'
-      path: '/guardian/settings'
-      fullPath: '/guardian/settings'
-      preLoaderRoute: typeof GuardianSettingsRouteImport
+    '/guardian/monitor': {
+      id: '/guardian/monitor'
+      path: '/guardian/monitor'
+      fullPath: '/guardian/monitor'
+      preLoaderRoute: typeof GuardianMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guardian/dashboard': {
+      id: '/guardian/dashboard'
+      path: '/guardian/dashboard'
+      fullPath: '/guardian/dashboard'
+      preLoaderRoute: typeof GuardianDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guardian/create': {
+      id: '/guardian/create'
+      path: '/guardian/create'
+      fullPath: '/guardian/create'
+      preLoaderRoute: typeof GuardianCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { useScanLoop, type ScanResult } from "@/hooks/useScanLoop";
+import { useScanLoop } from "@/hooks/useScanLoop";
+import type { ScanResult } from "@/lib/types";
 import { ensureNotificationPermission, sendWarningNotification } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { api, localSession } from "@/lib/api";

@@ -28,6 +28,7 @@ dist-ssr
 *.suo
 *.ntvs*
 *.njsproj
+*/__pycache__/
 *.sln
 *.sw?
 *.env

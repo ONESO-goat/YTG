@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = fastapi.FastAPI(title="YTG API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Replace "*" with your specific https://xxx.lovable.app domain in production
+    allow_origins=["https://your-truest-guardian.lovable.app"],  # Replace "*" with your specific https://xxx.lovable.app domain in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

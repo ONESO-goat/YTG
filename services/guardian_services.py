@@ -77,8 +77,8 @@ class GuardianServices:
         if not name or not guardian_type:
             return None, "Guardian name and type are required"
 
-        if user.user_type == UserType.CHILD:
-            return None, "Cannot make guardian as a child"
+        if user.user_type == UserType.DEPENDENT:
+            return None, "Cannot make guardian as a DEPENDENT"
         
         if self.get_guardian_by_owner(session, user=user):
             return None, "User already owns a Guardian"

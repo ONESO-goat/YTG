@@ -12,16 +12,13 @@ import {
   Gem,
 } from "lucide-react";
 import { localSession } from "@/lib/api";
-
-export function AppShell({ children, variant }: { children: ReactNode; variant: "guardian" | "individual" }) {
+export function AppShell({ children, variant }: { children: ReactNode; variant: "guardian" | "individual" | "dependent"}) {
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  // 1. Keep session state stable across renders
   const [session, setSession] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
-  // 2. Safely read localSession AFTER the client mounts (prevents hydration errors)
   useEffect(() => {
     setMounted(true);
     setSession(localSession.get());
@@ -37,16 +34,26 @@ export function AppShell({ children, variant }: { children: ReactNode; variant: 
     { to: "/guardian/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/shop", label: "Shop", icon: ShoppingBag },
   ];
-  const links = variant === "guardian" ? guardianLinks : indivLinks;
+  const dependentLinks = [
+    { to: "/guardian/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    //{ to: "/guardian/reports", label: "Reports", icon: Bell },
+    { to: "/shop", label: "Shop", icon: ShoppingBag },
+  ];
+
+  // ✔️ Compute links directly based on variant without state setters
+  const links = 
+    variant === "guardian" 
+      ? guardianLinks 
+      : variant === "individual" 
+      ? indivLinks 
+      : dependentLinks;
 
   function logout() {
     localSession.clear();
     nav({ to: "/" });
   }
 
-  // Fallback points to 0 while unmounted
   const points = mounted ? (session?.points ?? 0) : 0;
-
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6 md:px-6">

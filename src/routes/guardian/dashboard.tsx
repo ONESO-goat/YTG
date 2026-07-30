@@ -16,9 +16,11 @@ function Dashboard() {
   const nav = useNavigate();
   const [monitoringOn, setMonitoringOn] = useState(false);
   const [isPersonalAccount, setIsPersonalAccount] = useState(false);
-  const [isDependent, setIsDependent] = useState(false);
+  const [userIsDependent, setUserIsDependent] = useState(false);
   const [connections, setConnections] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+  const [guardianId, setGuardianId] = useState('');
+  const [variant, setVariant] = useState('guardian');
 
   // 1. Keep session state stable between renders
   const [session, setSession] = useState<any>(null);
@@ -33,29 +35,48 @@ function Dashboard() {
     setSession(activeSession);
   }, [nav]);
 
-  // 3. Fetch data only when guardian_id is available
-  const guardianId = session?.guardian_id;
-
+  // 3. Fetch data only when session is loaded
   useEffect(() => {
-    if (!guardianId) return;
+    if (!session?.user_id) return;
 
     (async () => {
       try {
-        const guar = await api.getGuardian(guardianId);
-        if (monitoringOn === false && guar.on) {toggleMonitoring(true)} 
-        //else {toggleMonitoring(false)}
-        setIsPersonalAccount(guar.guardian_type === "personal")
-        setIsDependent(guar?.guardian_type==="dependent");
-        const c: any = await api.connections(guardianId);
+        const u: any = await api.getUser(session.user_id);
+        if (!u) return;
+
+        let activeGuardianId = session.guardian_id;
+
+        if (u?.user_type === "dependent") {
+          const con = await api.getConnectionIfUserHasOne(u?.id);
+          if (!con) {
+            nav({ to: "/guardian/waiting_for_connection" });
+            return;
+          }
+          setVariant("dependent");
+          activeGuardianId = con?.guardian_id;
+        }
+
+        setGuardianId(activeGuardianId);
+
+        if (!activeGuardianId) return;
+
+        const guar = await api.getGuardian(activeGuardianId);
+        if (monitoringOn === false && guar?.on) {
+          toggleMonitoring(true);
+        }
+        setIsPersonalAccount(guar?.guardian_type === "personal");
+        setUserIsDependent(u?.user_type === "dependent");
+
+        const c: any = await api.connections(activeGuardianId);
         setConnections(Array.isArray(c) ? c : c?.connections || []);
-      } catch {}
-      
-      try {
-        const r: any = await api.reports(guardianId);
+
+        const r: any = await api.reports(activeGuardianId);
         setReports(Array.isArray(r) ? r : r?.reports || []);
-      } catch {}
+      } catch (err) {
+        console.error(err);
+      }
     })();
-  }, [guardianId]); // ✅ Only re-runs if guardianId actually changes!
+  }, [session]); // ✔️ Depend on session instead of guardianId to prevent infinite loops
 
   async function toggleMonitoring(v: boolean) {
     if (!session?.guardian_id) return;
@@ -68,8 +89,10 @@ function Dashboard() {
       toast.warning("Backend unreachable");
     }
   }
+
   return (
-    <AppShell variant="guardian">
+    <AppShell variant={variant}>
+      {/* Rest of your JSX remains exactly the same */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-semibold">Household overview</h1>
@@ -78,53 +101,49 @@ function Dashboard() {
           </p>
         </div>
 
-
-
-        {(!isPersonalAccount && !isDependent) && (<div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-          <div>
-            <div className="text-xs text-muted-foreground">Monitoring</div>
-            <div className="font-medium">{monitoringOn ? "Active" : "Paused"}</div>
+        {(!isPersonalAccount && !userIsDependent) && (
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Monitoring</div>
+              <div className="font-medium">{monitoringOn ? "Active" : "Paused"}</div>
+            </div>
+            <Switch checked={monitoringOn} onCheckedChange={toggleMonitoring} />
           </div>
-          <Switch checked={monitoringOn} onCheckedChange={toggleMonitoring} />
-        </div>)}
-
+        )}
       </div>
 
-
-
       <div className="mt-8 grid gap-6 md:grid-cols-2">
-
-        { (!isDependent) && (<section className="rounded-2xl border border-border bg-card p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
-
-              <Users className="h-4 w-4 text-primary" /> {!isPersonalAccount ? 'Connected people' : "Settings"}
-              
-            </h2>
-            <Link to="/guardian/settings">
-              <Button variant="ghost" size="sm">
-                Manage <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
-            </Link>
-          </div>
-          {connections.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {(!isPersonalAccount && !isDependent) ? 'No one connected yet. Add a dependent from Settings.' : "Customize guardian function"}
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {connections.map((c: any, i: number) => (
-                <li
-                  key={c.user_id || i}
-                  className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm"
-                >
-                  <span>{c.username || c.user_name || c.user_id}</span>
-                  <span className="text-xs text-muted-foreground">{c.relationship || "connected"}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>)}
+        {!userIsDependent && (
+          <section className="rounded-2xl border border-border bg-card p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <Users className="h-4 w-4 text-primary" /> {!isPersonalAccount ? 'Connected people' : "Settings"}
+              </h2>
+              <Link to="/guardian/settings">
+                <Button variant="ghost" size="sm">
+                  Manage <ArrowRight className="ml-1 h-3 w-3" />
+                </Button>
+              </Link>
+            </div>
+            {connections.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {(!isPersonalAccount && !userIsDependent) ? 'No one connected yet. Add a dependent from Settings.' : "Customize guardian function"}
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {connections.map((c: any, i: number) => (
+                  <li
+                    key={c.user_id || i}
+                    className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm"
+                  >
+                    <span>{c.username || c.user_name || c.user_id}</span>
+                    <span className="text-xs text-muted-foreground">{c.relationship || "connected"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         <section className="rounded-2xl border border-border bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
@@ -137,22 +156,22 @@ function Dashboard() {
               </Button>
             </Link>
           </div>
-          {(!isDependent) &&
-          (reports.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing to report — that's a good sign.</p>
-          ) : (
-            <ul className="space-y-2">
-              {reports.slice(0, 5).map((r: any, i: number) => (
-                <li key={i} className="rounded-lg bg-muted/50 px-3 py-2 text-sm">
-                  <div className="font-medium">{r.description || "Flagged event"}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {r.timestamp || r.created_at || ""}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ))
-          }
+          {!userIsDependent && (
+            reports.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nothing to report — that's a good sign.</p>
+            ) : (
+              <ul className="space-y-2">
+                {reports.slice(0, 5).map((r: any, i: number) => (
+                  <li key={i} className="rounded-lg bg-muted/50 px-3 py-2 text-sm">
+                    <div className="font-medium">{r.description || "Flagged event"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {r.timestamp || r.created_at || ""}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )
+          )}
         </section>
       </div>
 

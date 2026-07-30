@@ -22,6 +22,7 @@ function SettingsPage() {
   const [newConnection, setNewConnection] = useState<number | "">(0);
   const [connections, setConnections] = useState<any[]>([]);
   const [isPersonalAccount, setIsPersonalAccount] = useState(false);
+  const [userIsDependent, setUserIsDependent] = useState(false);
 
   const [warning, setWarning] = useState("Please skip this one for me, okay?");
   const [applause, setApplause] = useState("Proud of you for moving past that ❤️");
@@ -36,7 +37,10 @@ function SettingsPage() {
       nav({ to: "/auth" });
       return;
     }
-    if (!session.guardian_id) return;
+    if (!session.guardian_id) {
+      nav({to: "/guardian/dashboard"});
+      return;
+    };
     (async () => {
       try {
         const u: any = await api.getGuardian(session.guardian_id!);

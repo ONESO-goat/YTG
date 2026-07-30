@@ -35,14 +35,22 @@ function Reports() {
 
     (async () => {
       try {
+        const u: any = await api.getUser(session?.user_id);
+        if (!u) return;
+        if (u?.user_type === "dependent"){
+          
+        }
         const r: any = await api.reports(guardianId);
+        
         setReports(Array.isArray(r) ? r : r?.reports || []);
       } catch {}
     })();
   }, [guardianId]); // ✅ Only fires once when guardianId is set
 
+  const variant = session?.role === "guardian" ? "guardian" : "individual";
+
   return (
-    <AppShell variant="guardian">
+    <AppShell variant={variant}>
       <h1 className="font-display text-3xl font-semibold">Alerts</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Flagged events across your household.

@@ -21,7 +21,17 @@ export const Route = createFileRoute("/auth")({
 async function routeAfterAuth(nav: ReturnType<typeof useNavigate>, user_id: string) {
   // Try to find an existing guardian for this user. If found → dashboard.
   try {
+    const u: any = await api.getUser(user_id);
+    if (!u){return};
+    if (u?.user_type==="dependent"){
+      const g: any = await api.getConnectionIfUserHasOne(user_id);
+      if (!g){
+        nav({to: "/guardian/waiting_for_connection"});
+        return;
+    }
+    } else {
     const g: any = await api.getGuardianByOwner(user_id);
+    }
     const gid = pickId(g, "guardian_id", "id");
     if (gid) {
       localSession.patch({ role: "guardian", guardian_id: gid });
@@ -47,8 +57,17 @@ function AuthPage() {
     // Always start clean — no stale IDs from previous sessions.
     localSession.clear();
     try {
-      const r: any = await api.login(login);
-      const uid = pickId(r, "user_id", "id");
+      console.log("LOG IN HIT")
+      const u: any = await api.login(login);
+      if (!u){return;}
+      console.log(`USER EXIST ${u.id}`);
+      if (u?.user_type === "dependent"){
+        localSession.set({ user_id: u.id, username: u.username, role: "individual" });
+        toast.success("Welcome back");
+        nav({to: "/guardian/dashboard"}); 
+        return;
+      }
+      const uid = pickId(u, "user_id", "id");
       if (!uid) throw new Error("No user_id returned from backend");
       localSession.set({ user_id: uid, username: login.username, role: "individual" });
       toast.success("Welcome back");
@@ -71,7 +90,7 @@ function AuthPage() {
       localSession.set({ user_id: uid, username: signup.username, role: "individual" });
       toast.success("Welcome to YTG");
       if (signup.user_type === "dependent"){
-
+        nav({to: "/guardian/waiting_for_connection"});
       } else{
       nav({ to: "/onboarding" });
     }
@@ -125,7 +144,7 @@ function AuthPage() {
       Select user type...
     </option>
     <option value="dependent">Dependent</option>
-    <option value="supervisor">Supervisor</option>
+    <option value="caregiver">Caregiver</option>
     <option value="individual">Individual</option>
   </select>
 </div>

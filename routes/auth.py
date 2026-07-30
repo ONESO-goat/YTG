@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ValidationError
 from sqlmodel import Session
-
+from models.models import UserType
 from fastapi_config import get_session
 from services.user_service import UserService
 
@@ -24,7 +24,15 @@ class UserLogin(BaseModel):
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 def signup(user_input: UserSignup, session: Session = Depends(get_session)):
-    user, msg = user_service.create_user(session=session, **user_input.model_dump())
+    try:
+        user_type = UserType(user_input.user_type)
+    except ValidationError:
+        raise HTTPException(status_code=400, detail=f"The user type '{user_input.user_type}' is not known")
+    user, msg = user_service.create_user(session=session, 
+                                         username=user_input.username,
+                                         email=user_input.email,
+                                         password=user_input.password,
+                                         user_type=user_type)
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
     return user

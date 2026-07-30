@@ -6,9 +6,11 @@ from sqlmodel import Session
 
 from fastapi_config import get_session
 from services.user_service import UserService
+from services.guardian_services import GuardianServices
 
 router = APIRouter(prefix="/users", tags=["Users"])
 user_service = UserService()
+guardian_service = GuardianServices()
 
 
 class ChangeNameRequest(BaseModel):
@@ -112,4 +114,16 @@ def get_users_by_guardian(guardian_id: str, session: Session = Depends(get_sessi
     if users is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
     return users
+
+
+@router.get("/get/user/connection/{user_id}")
+def fetch_user_connection(
+    user_id:str,
+    session:Session=Depends(get_session)
+):
+    user = user_service.get_user_by_id(session=session, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail=f"User of id '{user_id}' does not exist.")
+    connection, msg = guardian_service.get_user_connection_if_any(session=session, user=user)
+    return connection
 

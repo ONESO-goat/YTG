@@ -13,6 +13,7 @@ class UserSignup(BaseModel):
     username: str
     email: EmailStr
     password: str
+    user_type: str
 
 
 class UserLogin(BaseModel):

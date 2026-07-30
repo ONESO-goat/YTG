@@ -37,10 +37,9 @@ STRICTNESS_MULTIPLIERS = {
 }
 
 class UserType(Enum):
-    PARENT = "parent"
     CAREGIVER = "caregiver" 
     INDIVIDUAL = "individual"
-    CHILD = "child"
+    DEPENDENT = "dependent"
 
 
 class GuardianType(Enum):

@@ -18,6 +18,7 @@ import { Route as GuardianDashboardRouteImport } from './routes/guardian/dashboa
 import { Route as GuardianMonitorRouteImport } from './routes/guardian/monitor'
 import { Route as GuardianReportsRouteImport } from './routes/guardian/reports'
 import { Route as GuardianSettingsRouteImport } from './routes/guardian/settings'
+import { Route as GuardianWaiting_for_connectionRouteImport } from './routes/guardian/waiting_for_connection'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +65,12 @@ const GuardianSettingsRoute = GuardianSettingsRouteImport.update({
   path: '/guardian/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuardianWaiting_for_connectionRoute =
+  GuardianWaiting_for_connectionRouteImport.update({
+    id: '/guardian/waiting_for_connection',
+    path: '/guardian/waiting_for_connection',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/guardian/monitor': typeof GuardianMonitorRoute
   '/guardian/reports': typeof GuardianReportsRoute
   '/guardian/settings': typeof GuardianSettingsRoute
+  '/guardian/waiting_for_connection': typeof GuardianWaiting_for_connectionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +94,7 @@ export interface FileRoutesByTo {
   '/guardian/monitor': typeof GuardianMonitorRoute
   '/guardian/reports': typeof GuardianReportsRoute
   '/guardian/settings': typeof GuardianSettingsRoute
+  '/guardian/waiting_for_connection': typeof GuardianWaiting_for_connectionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +107,7 @@ export interface FileRoutesById {
   '/guardian/monitor': typeof GuardianMonitorRoute
   '/guardian/reports': typeof GuardianReportsRoute
   '/guardian/settings': typeof GuardianSettingsRoute
+  '/guardian/waiting_for_connection': typeof GuardianWaiting_for_connectionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/guardian/monitor'
     | '/guardian/reports'
     | '/guardian/settings'
+    | '/guardian/waiting_for_connection'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +133,7 @@ export interface FileRouteTypes {
     | '/guardian/monitor'
     | '/guardian/reports'
     | '/guardian/settings'
+    | '/guardian/waiting_for_connection'
   id:
     | '__root__'
     | '/'
@@ -133,6 +145,7 @@ export interface FileRouteTypes {
     | '/guardian/monitor'
     | '/guardian/reports'
     | '/guardian/settings'
+    | '/guardian/waiting_for_connection'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,6 +158,7 @@ export interface RootRouteChildren {
   GuardianMonitorRoute: typeof GuardianMonitorRoute
   GuardianReportsRoute: typeof GuardianReportsRoute
   GuardianSettingsRoute: typeof GuardianSettingsRoute
+  GuardianWaiting_for_connectionRoute: typeof GuardianWaiting_for_connectionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -212,6 +226,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuardianSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/guardian/waiting_for_connection': {
+      id: '/guardian/waiting_for_connection'
+      path: '/guardian/waiting_for_connection'
+      fullPath: '/guardian/waiting_for_connection'
+      preLoaderRoute: typeof GuardianWaiting_for_connectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,6 +246,7 @@ const rootRouteChildren: RootRouteChildren = {
   GuardianMonitorRoute: GuardianMonitorRoute,
   GuardianReportsRoute: GuardianReportsRoute,
   GuardianSettingsRoute: GuardianSettingsRoute,
+  GuardianWaiting_for_connectionRoute: GuardianWaiting_for_connectionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

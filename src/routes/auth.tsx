@@ -31,6 +31,7 @@ async function routeAfterAuth(nav: ReturnType<typeof useNavigate>, user_id: stri
   } catch {
     /* no guardian yet — fall through */
   }
+
   nav({ to: "/onboarding" });
 }
 
@@ -38,7 +39,7 @@ function AuthPage() {
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
   const [login, setLogin] = useState({ username: "", password: "" });
-  const [signup, setSignup] = useState({ username: "", email: "", password: "" });
+  const [signup, setSignup] = useState({ username: "", email: "", password: "", user_type: "" });
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -69,7 +70,12 @@ function AuthPage() {
       if (!uid) throw new Error("No user_id returned from backend");
       localSession.set({ user_id: uid, username: signup.username, role: "individual" });
       toast.success("Welcome to YTG");
+      if (signup.user_type === "dependent"){
+
+      } else{
       nav({ to: "/onboarding" });
+    }
+
     } catch (err: any) {
       toast.error(err?.message || "Sign up failed");
     } finally {
@@ -106,6 +112,23 @@ function AuthPage() {
                   <Label htmlFor="s-pw">Password</Label>
                   <Input id="s-pw" type="password" required value={signup.password} onChange={(e) => setSignup({ ...signup, password: e.target.value })} />
                 </div>
+               <div>
+  <Label htmlFor="s-pw">User Type</Label>
+  <select
+    id="s-pw"
+    required
+    value={signup.user_type}
+    onChange={(e) => setSignup({ ...signup, user_type: e.target.value })}
+    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    <option value="" disabled>
+      Select user type...
+    </option>
+    <option value="dependent">Dependent</option>
+    <option value="supervisor">Supervisor</option>
+    <option value="individual">Individual</option>
+  </select>
+</div>
                 <button type="submit" className="duo-btn duo-btn-lg w-full" disabled={busy}>
                   {busy ? "Creating..." : "Create account"}
                 </button>

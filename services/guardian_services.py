@@ -198,6 +198,19 @@ class GuardianServices:
 
         return guardian, "success"
     
+    def get_user_connection_if_any(self, session:Session, user:User)->tuple[None|GuardianConnection, str]:
+        if not session or not user:
+            return None, "User and session are required"
+        
+        statement = session.exec(
+            select(GuardianConnection)
+            .where(GuardianConnection.user_id==user.id)).first()
+
+        msg = "The user doesn't have a connection: 404" if not statement else "success" 
+        # 404 for quick check in tsx files: if (text.includes("404"))
+        
+        return statement, msg
+    
     def get_or_create_guardian_restrictions(self, session:Session, guardian:Guardian):
         if not guardian:
             return None, "Guardian is requried"

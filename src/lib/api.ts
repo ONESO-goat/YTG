@@ -21,13 +21,15 @@ async function jfetch<T = any>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   // Auth
-  signup: (body: { username: string; email: string; password: string }) =>
+  signup: (body: { username: string; email: string; password: string, user_type: string }) =>
     jfetch(`/auth/signup`, { method: "POST", body: JSON.stringify(body) }),
   login: (body: { username: string; password: string }) =>
     jfetch(`/auth/login`, { method: "POST", body: JSON.stringify(body) }),
 
   // Users
   getUser: (userId: string) => jfetch(`/users/${userId}`),
+
+  getConnectionIfUserHasOne: (userId: string) => jfetch(`/users/get/user/connection/${userId}`),
 
   getUserByNumberId: (userId: number) => jfetch(`/users/number/${userId}`),
 

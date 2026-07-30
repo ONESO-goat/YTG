@@ -21,6 +21,7 @@ function Monitor() {
   const [guardianSession, setGuardianSession] = useState();
   const [pointsPop, setPointsPop] = useState(0);
   const [applauding, setApplauding] = useState(false);
+  const [isHarsh, setIsHarsh] = useState(false);
   const [guardianMsgs, setGuardianMsgs] = useState({
     warning: "Please skip this one for me, okay?",
     applause: "Proud of you for moving past that ❤️",
@@ -53,6 +54,7 @@ function Monitor() {
           warning: s?.custom_warning_messages?.warning || prev.warning,
           applause: s?.custom_warning_messages?.applause || prev.applause,
         }));
+        setIsHarsh(s?.strictness === "harsh");
       } catch {}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,7 +78,7 @@ function Monitor() {
     }
   }
 
-  const { start, stop, running, lastResult, state} = useScanLoop(null, 5000, guardianMsgs)
+  const { start, stop, running, lastResult, state} = useScanLoop(null, 5000, guardianMsgs, isHarsh)
 //   const { videoRef, canvasRef, start, stop, running, state, description } = useScanLoop({
 //     userId: session?.user_id || "",
 //     guardianId: session?.guardian_id || session?.user_id || "",

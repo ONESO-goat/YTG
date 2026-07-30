@@ -52,7 +52,7 @@ export function AppShell({ children, variant }: { children: ReactNode; variant: 
       <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6 md:px-6">
         {/* Sidebar */}
         <aside className="hidden w-56 shrink-0 md:block">
-          <Link to="/" className="mb-6 flex items-center gap-2 px-2 font-display text-xl font-extrabold">
+          <Link to="/guardian/dashboard" className="mb-6 flex items-center gap-2 px-2 font-display text-xl font-extrabold">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow">
               <Shield className="h-5 w-5" />
             </span>

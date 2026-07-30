@@ -38,7 +38,7 @@ export const api = {
   usersByGuardian: (guardianId: string) => jfetch(`/users/guardian/${guardianId}`),
 
   // Guardians
-  createGuardian: (body: { owner_id: string; name: string; guardian_type: "family" | "personal" }) =>
+  createGuardian: (body: { owner_id: string; name: string; guardian_type: "family" | "personal" | "dependent"}) =>
     jfetch(`/guardians/create`, { method: "POST", body: JSON.stringify(body) }),
 
   getGuardian: (id: string) => jfetch(`/guardians/${id}`),

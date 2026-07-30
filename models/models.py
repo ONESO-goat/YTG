@@ -46,6 +46,7 @@ class UserType(Enum):
 class GuardianType(Enum):
     FAMILY = "family"
     PERSONAL = "personal"
+    DEPENDENT = "dependent"
 
 
 class RewardType(Enum):

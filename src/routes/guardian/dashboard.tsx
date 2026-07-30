@@ -16,6 +16,7 @@ function Dashboard() {
   const nav = useNavigate();
   const [monitoringOn, setMonitoringOn] = useState(false);
   const [isPersonalAccount, setIsPersonalAccount] = useState(false);
+  const [isDependent, setIsDependent] = useState(false);
   const [connections, setConnections] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
 
@@ -44,6 +45,7 @@ function Dashboard() {
         if (monitoringOn === false && guar.on) {toggleMonitoring(true)} 
         //else {toggleMonitoring(false)}
         setIsPersonalAccount(guar.guardian_type === "personal")
+        setIsDependent(guar?.guardian_type==="dependent");
         const c: any = await api.connections(guardianId);
         setConnections(Array.isArray(c) ? c : c?.connections || []);
       } catch {}
@@ -78,23 +80,26 @@ function Dashboard() {
 
 
 
-        {!isPersonalAccount && <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        {(!isPersonalAccount && !isDependent) && (<div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
           <div>
             <div className="text-xs text-muted-foreground">Monitoring</div>
             <div className="font-medium">{monitoringOn ? "Active" : "Paused"}</div>
           </div>
           <Switch checked={monitoringOn} onCheckedChange={toggleMonitoring} />
-        </div>}
+        </div>)}
 
       </div>
 
 
 
       <div className="mt-8 grid gap-6 md:grid-cols-2">
-        <section className="rounded-2xl border border-border bg-card p-6">
+
+        { (!isDependent) && (<section className="rounded-2xl border border-border bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <Users className="h-4 w-4 text-primary" /> Connected people
+
+              <Users className="h-4 w-4 text-primary" /> {!isPersonalAccount ? 'Connected people' : "Settings"}
+              
             </h2>
             <Link to="/guardian/settings">
               <Button variant="ghost" size="sm">
@@ -104,7 +109,7 @@ function Dashboard() {
           </div>
           {connections.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No one connected yet. Add a dependent from Settings.
+              {(!isPersonalAccount && !isDependent) ? 'No one connected yet. Add a dependent from Settings.' : "Customize guardian function"}
             </p>
           ) : (
             <ul className="space-y-2">
@@ -119,7 +124,7 @@ function Dashboard() {
               ))}
             </ul>
           )}
-        </section>
+        </section>)}
 
         <section className="rounded-2xl border border-border bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
@@ -132,7 +137,8 @@ function Dashboard() {
               </Button>
             </Link>
           </div>
-          {reports.length === 0 ? (
+          {(!isDependent) &&
+          (reports.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nothing to report — that's a good sign.</p>
           ) : (
             <ul className="space-y-2">
@@ -145,7 +151,8 @@ function Dashboard() {
                 </li>
               ))}
             </ul>
-          )}
+          ))
+          }
         </section>
       </div>
 

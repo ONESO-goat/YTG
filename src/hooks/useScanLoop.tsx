@@ -1,31 +1,39 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { ensureNotificationPermission, sendWarningNotification } from "@/lib/notify";
-import { set } from "date-fns";
+import { sendWarningNotification, forcePictureInPictureWarning } from "@/lib/notify";
 
-export function useScanLoop(sessionId: string | null, intervalMs = 5000, warningMessages:any) {
-  
+export function useScanLoop(
+  sessionId: string | null,
+  intervalMs = 5000,
+  warningMessages: { warning?: string; applause?: string } = {},
+  isHarsh: boolean = false,
+) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<any>(null);
-  const runningRef = useRef(false); // ref, not state — avoids stale closure in setTimeout
+  const runningRef = useRef(false);
+  
+  // Store latest warningMessages in a ref to avoid stale closure in tick loop
+  const msgsRef = useRef(warningMessages);
+  useEffect(() => {
+    msgsRef.current = warningMessages;
+  }, [warningMessages]);
+
   const [running, setRunning] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const [state, setState] = useState("");
 
-  async function start(sessId:string|null=null) {
-    if (!sessionId && sessId === null) throw new Error("No sessionId — create the session first");
-    if (!sessionId && sessId !== null) {sessionId = sessId}
-    console.log(`CURRENT SESSION ID AFTER START: ${sessionId}`);
-    // 1. Ask the browser for screen share (must be triggered by a user click)
+  async function start(sessId: string | null = null) {
+    let activeSessionId = sessId || sessionId;
+    if (!activeSessionId) throw new Error("No sessionId provided");
+
     const media = await navigator.mediaDevices.getDisplayMedia({
       video: { frameRate: 5 },
       audio: false,
     });
     streamRef.current = media;
 
-    // 2. Create a hidden <video> to render the stream so we can draw it to canvas
     const video = document.createElement("video");
     video.muted = true;
     video.playsInline = true;
@@ -33,15 +41,13 @@ export function useScanLoop(sessionId: string | null, intervalMs = 5000, warning
     await video.play();
     videoRef.current = video;
 
-    // 3. Create the canvas we'll snapshot into
     canvasRef.current = document.createElement("canvas");
 
-    // 4. If the user hits the browser's "Stop sharing" button, tear down
     media.getVideoTracks()[0].addEventListener("ended", stop);
 
     runningRef.current = true;
     setRunning(true);
-    tick(); // fire once immediately, then loop
+    tick(activeSessionId);
   }
 
   function stop() {
@@ -54,27 +60,26 @@ export function useScanLoop(sessionId: string | null, intervalMs = 5000, warning
     canvasRef.current = null;
   }
 
-  async function tick() {
+  async function tick(activeSessionId: string) {
     if (!runningRef.current) return;
     try {
-      await captureAndSend();
+      await captureAndSend(activeSessionId);
     } catch (e) {
-      console.error("scan tick failed", e);
+      console.error("Scan tick failed:", e);
     }
     if (runningRef.current) {
-        // setState("cooldown");
-        timerRef.current = setTimeout(tick, intervalMs);
+      timerRef.current = setTimeout(() => tick(activeSessionId), intervalMs);
     }
   }
 
-  async function captureAndSend() {
+  async function captureAndSend(activeSessionId: string) {
     const v = videoRef.current;
     const c = canvasRef.current;
-    if (!v || !c || !sessionId) return;
+    if (!v || !c || !activeSessionId) return;
 
     const w = v.videoWidth;
     const h = v.videoHeight;
-    if (!w || !h) return; // stream not ready yet
+    if (!w || !h) return;
 
     c.width = w;
     c.height = h;
@@ -82,33 +87,35 @@ export function useScanLoop(sessionId: string | null, intervalMs = 5000, warning
     if (!ctx) return;
     ctx.drawImage(v, 0, 0, w, h);
 
-    // toBlob is async — wrap in a Promise
     const blob: Blob | null = await new Promise((res) =>
       c.toBlob(res, "image/png")
     );
     if (!blob) return;
 
-    // POST as multipart/form-data — do NOT set Content-Type manually,
-    // the browser adds the correct boundary.
-    const result = await api.scan(sessionId, blob);
+    const result = await api.scan(activeSessionId, blob);
     setLastResult(result);
-    const is_flagged = result.flagged;
-    if (is_flagged === true){
-      sendWarningNotification(
-        {
-        body: warningMessages.warning,
-      }
-      );
-        //alert(warningMessages.warning);
-        setState("warning");
+
+    const is_flagged = result?.flagged || result?.warning_active;
+    if (is_flagged) {
+      const msgText = msgsRef.current?.warning || "Please move away from this content.";
+      
+      if (isHarsh){
+      forcePictureInPictureWarning(msgText);
     }
-    else {setState("clear");}
-    console.log(result);
-    console.log(`THE AI RESPONSE: ${result.description}`);
+      // Fire OS Notification over other browser tabs/apps
+      sendWarningNotification({
+        title: "YTG — Gentle Nudge",
+        body: result.description ? `${msgText} (Detected: ${result.description})` : msgText,
+      });
+
+      setState("warning");
+    } else {
+      setState("clear");
+    }
+    setLastResult(result);
     return result;
   }
 
-  // Cleanup on unmount
   useEffect(() => () => stop(), []);
 
   return { start, stop, running, lastResult, state };

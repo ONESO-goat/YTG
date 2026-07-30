@@ -8,7 +8,7 @@ import { api, localSession, pickId } from "@/lib/api";
 import { toast } from "sonner";
 
 const searchSchema = z.object({
-  type: z.enum(["family", "personal"]).catch("personal"),
+  type: z.enum(["family", "personal", "dependent"]).catch("personal"),
 });
 
 export const Route = createFileRoute("/guardian/create")({

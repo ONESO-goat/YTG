@@ -65,6 +65,34 @@ class Gameify:
         session.commit()
         return True, f"{user.username} bought {reward.name} for {reward.cost}"
         
+    def compute_daily_settlement(
+        self,
+        avoided_count: int,
+        ignored_count: int,
+        daily_baseline: int = 1000,
+        per_avoidance_bonus: int = 25,
+        avoided_decay: float = 0.04,   # % multiplier lost per avoided warning
+        ignored_decay: float = 0.12,   # % multiplier lost per ignored warning
+        multiplier_floor: float = 0.05,
+        streak_bonus_per_day: int = 20,
+        streak_days: int = 0,
+    ) -> dict:
+        raw_points = avoided_count * per_avoidance_bonus
+
+        decay = (avoided_count * avoided_decay) + (ignored_count * ignored_decay)
+        multiplier = max(multiplier_floor, 1.0 - decay)
+
+        baseline_component = round(daily_baseline * multiplier)
+        streak_component = min(streak_days, 10) * streak_bonus_per_day  # cap so it doesn't run away
+
+        total = raw_points + baseline_component + streak_component
+        return {
+            "raw_points": raw_points,
+            "multiplier": multiplier,
+            "baseline_component": baseline_component,
+            "streak_component": streak_component,
+            "total": total,
+        }
         
     def can_afford(self, user:'User', reward: 'Reward'):
         return user.currency >= reward.cost

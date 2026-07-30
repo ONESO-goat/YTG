@@ -49,7 +49,9 @@ function Monitor() {
       if (!session?.guardian_id) return;
       try {
         //console.log(`USER ID: ${session?.user_id} GUARDIAN ID: ${session?.guardian_id} SESSION id: ${session?.id}`)
+        const u: any = await api.getUser(session.user_id);
         const s: any = await api.getSettings(session.guardian_id);
+        
         setGuardianMsgs((prev) => ({
           warning: s?.custom_warning_messages?.warning || prev.warning,
           applause: s?.custom_warning_messages?.applause || prev.applause,

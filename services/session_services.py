@@ -109,6 +109,36 @@ class YTGSessionService:
         session.refresh(row)
         return row
 
+    def end_of_the_day_disprute(self, session:Session, guardian:Guardian):
+        try:
+            if not guardian:
+                return False,"Guardian is required"
+            
+            all_sessions = self.get_all_sessions_under_guardian(session=session, guardian=guardian)
+            if not all_sessions:
+                return True, "empty List"
+            
+            for sess in all_sessions:
+                user = session.get(User, sess.user_id)
+                if not user:
+                    continue
+                points = sess.points_pending
+                total_warning_count = sess.total_alerts
+                warnings_ignored_count = sess.amount_of_warnings_ignored
+                warnings_listened_count = sess.amount_of_warnings_listened
+                
+                result = gameify_service.compute_daily_settlement(
+                    avoided_count=warnings_listened_count,
+                    ignored_count=warnings_ignored_count
+                )
+                gameify_service.add_points(session=session, user=user, amount=result.get("totoal", 0))
+                sess.reset()
+            session.commit()
+            session.refresh(guardian)
+        except Exception as ex:
+            session.rollback()
+            raise ValueError(f"Dangerous error occured during session daily reset: {ex}")
+        
     def get_users_session(self, session:Session, user: 'User'):
         statement = session.exec(select(GuardianSession).where(GuardianSession.user_id == user.id)).first()
         return statement

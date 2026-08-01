@@ -51,9 +51,9 @@ function Reports() {
 
   return (
     <AppShell variant={variant}>
-      <h1 className="font-display text-3xl font-semibold">Alerts</h1>
+      <h1 className="font-display text-3xl font-semibold">Log</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Flagged events across your household.
+        Events and flags across your household.
       </p>
 
       <div className="mt-6 divide-y divide-border rounded-2xl border border-border bg-card">
@@ -66,7 +66,7 @@ function Reports() {
           reports.map((r: any, i: number) => (
             <div key={i} className="p-4">
               <div className="flex items-center justify-between">
-                <div className="font-medium">{r.description || "Flagged event"}</div>
+                <div className="font-medium">{r.content || "Flagged event"}</div>
                 <div className="text-xs text-muted-foreground">
                   {r.timestamp || r.created_at || ""}
                 </div>

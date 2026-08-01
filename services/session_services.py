@@ -1,5 +1,6 @@
 from models.models import Guardian, User, GuardianType, GuardianReport, GuardianSettings, STRICTNESS_MULTIPLIERS
 from models.guardian_session import GuardianSession
+from .reports_service import create_report
 from .guardian_services import GuardianServices
 from .gameify_service import Gameify
 from sqlmodel import Session, select
@@ -197,7 +198,7 @@ class YTGSessionService:
                     include_name=is_family_account)
                 
                 self.add_event(session=session, content=breakdown, sm_row=session_row)
-               
+                create_report(session=session,guardian=guardian,content=breakdown)
                 penalty_applied = self.apply_point_penalty_if_needed(
                 session=session, 
                 sm_row=session_row, 

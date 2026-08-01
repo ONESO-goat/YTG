@@ -105,8 +105,7 @@ class Engine:
     def _generate(self, 
                  text:str, 
                  system_prompt:str, 
-                 return_json:bool=False, 
-                 image_bytes:bytes|None=None,
+                 return_json:bool=False,
                  _use_ollama:bool=False,
                  _ignore_text:bool=False,
                  )->Any:
@@ -136,14 +135,7 @@ class Engine:
                 
                 parts = [types.Part.from_text(text=f"<<<TEXT>>>\n{text}\n<<<TEXT>>>")] if text else []
 
-                if image_bytes:
-                    parts.append(
-                        types.Part.from_bytes(
-                            data=image_bytes,
-                            mime_type="image/png"  # or "image/jpeg"
-                        )
-                    )
-                    
+                 
                 user_content = types.Content(
                     role="user",
                     parts=[types.Part.from_text(text=f"<<<TEXT>>>\n{text}\n<<<TEXT>>>")]

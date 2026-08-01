@@ -2,6 +2,7 @@ from sqlmodel import SQLModel, Field, Relationship, JSON, Column
 from .helper import create_id, create_number_id
 from sqlalchemy.ext.mutable import MutableList
 from enum import Enum
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
 
@@ -139,6 +140,8 @@ class GuardianReport(SQLModel, table=True):
     send_to: Optional["User"] = Relationship(
         sa_relationship_kwargs={"foreign_keys": "GuardianReport.send_to_id"}
     )
+    
+    timestamp: datetime = Field(default=datetime.now().today())
 
 
 class Guardian(SQLModel, table=True):

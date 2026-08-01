@@ -8,7 +8,7 @@ from models.models import (GuardianConnection,
                            RelationshipType,
                            GuardianReport
                            )
-from models.guardian_session import GuardianSession
+from .reports_service import create_report
 from sqlmodel import Session, select, func
 from typing import Any
 
@@ -99,6 +99,11 @@ class GuardianServices:
         
         session.add_all([settings, restrictions])
         session.commit()
+        
+        create_report(
+            session=session, 
+            guardian=guardian, 
+            content=f"I am pleased to guide you away from the horrors that await in our journey {user.name.capitalize()}!")
         session.refresh(guardian)
         return guardian, "success"
     
@@ -169,6 +174,9 @@ class GuardianServices:
         session.add(connection)
         session.commit()
         session.refresh(connection)
+        create_report(session=session, 
+                      guardian=guardian, 
+                      content=f"{user.username} ({user.number_id}) fell into the guardians control!")
         return connection, "success"
     
     def remove_connection(self, session:Session, guardian:Guardian, user:User)->tuple[bool, str]:
@@ -187,6 +195,9 @@ class GuardianServices:
         
         session.delete(connection)
         session.commit()
+        create_report(session=session, 
+                              guardian=guardian, 
+                              content=f"The guardian has disowned {user.username} ({user.number_id}) as requested by the owner.")
         return True, "success"
     
     

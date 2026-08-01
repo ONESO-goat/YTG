@@ -3,12 +3,12 @@ from helpers.prompt import Prompts
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
-    from models.models import Guardian, GuardianSettings
+    from models.models import GuardianSettings
 
 class ScreenClassifier:
     def __init__(self) -> None:
         
-        self.engine = Engine()
+        self.engine = Engine(ai_to_use="ollama")
         self.prompts = Prompts()
 
     

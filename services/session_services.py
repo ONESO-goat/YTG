@@ -228,11 +228,13 @@ class YTGSessionService:
         user = session.get(User, session_row.user_id)
         if not user or not settings:
             raise ValueError("User or settings are missing during scanning process")
+        
         penalty_applied = 0
         if overview["flagged"]:
             session_row.warning_active = True
             session_row.tracking_start_at = None
             session_row.total_alerts += 1
+            session_row.minute_timer = None
             
             if not was_already_warning:
                 is_family_account = guardian.guardian_type == GuardianType.FAMILY
@@ -265,8 +267,20 @@ class YTGSessionService:
             # session_row.tracking_start_at = datetime.utcnow()
             # session_row.target_duration_seconds = 180
             self.start_avoidance_timer(session, session_row)
-
-        completed = self.update_and_check_timer(session=session, sm_row=session_row)
+        
+        completed = False
+        if not overview['flagged'] and not was_already_warning:
+            # If the user havent faced any warning or flags, a minute timer is set that rewards th user 10 points
+            # this means the user can get 600 points per hour if 100% clean
+            if session_row.minute_timer is None:
+                session_row.minute_timer = datetime.now()
+            if session_row.minute_passed() and session_row.points_gain_daily_limit >= 10:
+                gameify_service.add_points(session=session, user=user, amount=10)
+                session_row.minute_timer = datetime.now()
+                session_row.points_gain_daily_limit -= 10
+                completed = True
+        else:     
+            completed = self.update_and_check_timer(session=session, sm_row=session_row)
 
         session.commit()
 
@@ -290,7 +304,10 @@ class YTGSessionService:
                     return False
                 sm_row.warning_active = False
                 sm_row.tracking_start_at = None
-                #sm_row.points_pending += 25
+                if sm_row.points_gain_daily_limit <= 0:
+                    session.commit()
+                    return True # Reached daily limt
+                sm_row.points_gain_daily_limit -= 25
                 user.currency += 25
                 session.commit()
                 return True

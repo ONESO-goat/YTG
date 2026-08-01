@@ -32,6 +32,8 @@ class GuardianSession(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     last_active_at: datetime = Field(default=None, nullable=True)
+    points_gain_daily_limit: int = Field(default=10000)
+    minute_timer: Optional[datetime] = Field(default=None, nullable=True)
     
     streak: int = Field(default=0)
     
@@ -44,6 +46,7 @@ class GuardianSession(SQLModel, table=True):
         self.amount_of_warnings_listened = 0
         self.amount_of_warnings_ignored = 0
         self.penalized_this_episode = False
+        self.minute_timer = None
         
         self.events = []
         self.points_pending = 0
@@ -75,4 +78,11 @@ class GuardianSession(SQLModel, table=True):
         # Missed the window
         elif time_distance > 36:
             self.streak = 1
-  
+    
+    def minute_passed(self):
+        if self.minute_timer is None:
+            return False
+        
+        elapsed = datetime.now() - self.minute_timer
+        # Check if total elapsed seconds is 60 or more
+        return elapsed.total_seconds() >= 60

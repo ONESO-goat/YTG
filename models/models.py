@@ -2,11 +2,35 @@ from sqlmodel import SQLModel, Field, Relationship, JSON, Column
 from .helper import create_id, create_number_id
 from sqlalchemy.ext.mutable import MutableList
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 from pydantic import BaseModel
 
 
+def default_restrictions_on_creation()->list[str]:
+    return [
+        # Original Safety Categories
+        'hate speech', 
+        'violence', 
+        'gore', 
+        'extreme ideologies',
+        
+        # Harassment & Toxicity
+        'harassment',
+        'bullying',
+        'doxxing',
+        
+        # Security & Guardrail Bypasses
+        'prompt injection',
+        'jailbreak',
+        'system prompt extraction',
+        
+        # Harmful & Illegal Content
+        'self-harm',
+        'illegal acts',
+        'weapons manufacturing',
+
+    ]
 class Messages(BaseModel):
     warning: str = "Hey, I see that this content seems harmful. Please avoid it!"
     applause: str = "Great work friend! We are proud of you"
@@ -141,7 +165,7 @@ class GuardianReport(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "GuardianReport.send_to_id"}
     )
     
-    timestamp: datetime = Field(default=datetime.today().strftime('%Y-%m-%d'))
+    updated_at: date = Field(default_factory=date.today)
 
 
 class Guardian(SQLModel, table=True):
@@ -186,6 +210,7 @@ class GuardianSettings(SQLModel, table=True):
     custom_warning_messages: dict = Field(default_factory=lambda: Messages().model_dump(), sa_type=JSON)
     points_loss_enabled: bool = Field(default=False)
     base_points_lost: int = Field(default=5)
+    reports_enabled: bool = Field(default=True)
     
     guardian_id: Optional[str] = Field(default=None, foreign_key="guardian.id", unique=True)
     guardian: Optional["Guardian"] = Relationship(back_populates="guardian_settings")
@@ -210,10 +235,18 @@ class GuardianRestrictions(SQLModel, table=True):
 
     guardian_id: Optional[str] = Field(default=None, foreign_key="guardian.id", unique=True)
     guardian: Optional["Guardian"] = Relationship(back_populates="restrictions")
-   
+    
+    default_restrictions: list = Field(
+            default_factory=default_restrictions_on_creation, 
+            sa_column=Column(MutableList.as_mutable(JSON)))
+    
     restrictions: list = Field(
         default_factory=list, 
         sa_column=Column(MutableList.as_mutable(JSON)))
+    
+    
+    is_active: bool = Field(default=True)
+    updated_at: date = Field(default_factory=date.today)
 
 
 class RecentActivity(SQLModel, table=True):

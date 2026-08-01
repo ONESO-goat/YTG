@@ -67,8 +67,10 @@ export const api = {
       body: JSON.stringify({ restriction }),
     }),
   getSettings: (id: string) => jfetch(`/guardians/${id}/settings`),
+
   updateSettings: (id: string, body: Record<string, any>) =>
     jfetch(`/guardians/${id}/settings/update`, { method: "PATCH", body: JSON.stringify(body) }),
+  
   reports: (id: string) => jfetch(`/guardians/reports/${id}`),
 
   // Sessions

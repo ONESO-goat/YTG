@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, localSession } from "@/lib/api";
 import { toast } from "sonner";
 import { X, Plus } from "lucide-react";
+import { set } from "date-fns";
 
 export const Route = createFileRoute("/guardian/settings")({
   head: () => ({ meta: [{ title: "Settings — YTG" }] }),
@@ -27,6 +28,7 @@ function SettingsPage() {
   const [warning, setWarning] = useState("Please skip this one for me, okay?");
   const [applause, setApplause] = useState("Proud of you for moving past that ❤️");
   const [pointsLoss, setPointsLoss] = useState(false);
+  const [enableReports, setEnableReports] = useState(true);
   const [penalty, setPenalty] = useState(50);
   const [restrictions, setRestrictions] = useState<string[]>([]);
   const [newRestriction, setNewRestriction] = useState("");
@@ -51,6 +53,7 @@ function SettingsPage() {
         setApplause(s?.custom_warning_messages?.applause || applause);
         setPointsLoss(!!s.points_loss_enabled);
         setPenalty(s.base_points_lost ?? 50);
+        setEnableReports(!!s.reports_enabled);
       } catch {}
       try {
         const r: any = await api.fetchRestrictions(session.guardian_id!);
@@ -131,6 +134,7 @@ function SettingsPage() {
         applause_message: applause,
         points_loss_enabled: pointsLoss,
         base_points_lost: penalty,
+        reports_enabled: enableReports,
       });
       toast.success("Settings saved");
     } catch {
@@ -218,6 +222,18 @@ function SettingsPage() {
             </Select>
           </div>
         </section>
+
+<section className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="text-lg font-semibold">Reports</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {(!isPersonalAccount) ? "Enable reports on recent events for your household" : "Enable reports on recent events"}
+          </p>
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-sm">Enable</span>
+            <Switch checked={enableReports} onCheckedChange={setEnableReports} />
+          </div>
+         
+</section>
 
         <section className="rounded-2xl border border-border bg-card p-6">
           <h2 className="text-lg font-semibold">Point penalty</h2>

@@ -28,6 +28,8 @@ class AddConnectionRequest(BaseModel):
     user_id_or_username: str
     relationship: RelationshipType
 
+class DeleteReportRequest(BaseModel):
+    user_id:str
 class AddConnectionRequestNumberId(BaseModel):
     user_number_id: int
     relationship: RelationshipType
@@ -41,6 +43,7 @@ class UpdateGuardianSettingsRequest(BaseModel):
     warning_message: str | None = None
     applause_message: str | None = None
     strictness: str | None = None
+    reports_enabled: bool | None = None
     points_loss_enabled: bool
     base_points_lost: int
 
@@ -296,6 +299,7 @@ def update_guardian_settings(
         applause_message=payload.applause_message,
         strictness=payload.strictness,
         apply_penalty=payload.points_loss_enabled,
+        enable_reports=payload.reports_enabled,
         amount_of_points_to_lose=payload.base_points_lost
     )
     if not settings:
@@ -326,3 +330,29 @@ def get_reports(given_id:str, session:Session=Depends(get_session)):
         if reports is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"The given id '{given_id}' is not associated with any guardian or user. DETAILS: {mes}")
     return reports
+
+@router.get("/reports/get/{report_id}")
+def fetch_report(report_id:str, session:Session=Depends(get_session)):
+    report, mes = guardian_service.get_report(session=session, report_id=report_id)
+    if not report:
+        raise HTTPException(
+            status_code=404,
+            detail=mes
+        )
+    return report
+
+@router.delete("/reports/delete/{report_id}")
+def fetch_delete_report(report_id:str, user_making_request:DeleteReportRequest, session:Session=Depends(get_session)):
+    user = user_service.get_user_by_id(session=session, user_id=user_making_request.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User of id '{user_making_request.user_id}' does not exist"
+        )
+    sucess, mes = guardian_service.delete_report_by_id(session=session, user_making_request_id=user.id, report_id=report_id)
+    if not sucess:
+        raise HTTPException(
+            status_code=400,
+            detail=mes
+        )
+    return "Successfully removed report"

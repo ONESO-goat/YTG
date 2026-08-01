@@ -6,9 +6,10 @@ from models.models import (GuardianConnection,
                            GuardianRestrictions, 
                            GuardianType,
                            RelationshipType,
-                           GuardianReport
+                           GuardianReport,
+                           default_restrictions_on_creation
                            )
-from .reports_service import create_report
+from .reports_service import create_report, delete_report
 from sqlmodel import Session, select, func
 from typing import Any
 
@@ -174,9 +175,11 @@ class GuardianServices:
         session.add(connection)
         session.commit()
         session.refresh(connection)
-        create_report(session=session, 
-                      guardian=guardian, 
-                      content=f"{user.username} ({user.number_id}) fell into the guardians control!")
+        settings, mes = self.get_or_create_guardian_settings(session, guardian=guardian)
+        if settings and settings.reports_enabled:
+            create_report(session=session, 
+                        guardian=guardian, 
+                        content=f"{user.username} ({user.number_id}) fell into the guardians control!")
         return connection, "success"
     
     def remove_connection(self, session:Session, guardian:Guardian, user:User)->tuple[bool, str]:
@@ -195,7 +198,9 @@ class GuardianServices:
         
         session.delete(connection)
         session.commit()
-        create_report(session=session, 
+        settings, mes = self.get_or_create_guardian_settings(session, guardian=guardian)
+        if settings and settings.reports_enabled:
+            create_report(session=session, 
                               guardian=guardian, 
                               content=f"The guardian has disowned {user.username} ({user.number_id}) as requested by the owner.")
         return True, "success"
@@ -263,8 +268,10 @@ class GuardianServices:
                 return None, f"Guardian does not exist under the id {guardian_id}"
             
             restrictions, mes = self.get_or_create_guardian_restrictions(session, guardian=guardian)
+            
             if restriction not in restrictions.restrictions:
                 return None, f"{restriction} is not inside current restrictions"
+         
             restrictions.restrictions.remove(restriction)
             session.commit()
             return restrictions.restrictions, f"Successfully removed '{restriction}' from guardian restrictions"
@@ -277,8 +284,12 @@ class GuardianServices:
         restrictions, mes = self.get_or_create_guardian_restrictions(session, guardian=guardian)
         if restriction in restrictions.restrictions:
             return None, f"{restriction} is already inside current restrictions"
+        
         if len(restrictions.restrictions) >= 25:
             return None, f"Restrictions reached maxed amount of restrictions: size = {len(restrictions.restrictions)}"
+        
+        if restriction in default_restrictions_on_creation():
+            return None, f"{restriction} is already configured into the system, you are all set."
         
         restrictions.restrictions.append(restriction)
         session.commit()
@@ -292,6 +303,7 @@ class GuardianServices:
                                 applause_message:str|None=None,
                                 strictness:str|None=None, 
                                 language:str|None=None,
+                                enable_reports:bool|None=None,
                                 apply_penalty:bool|None=None,
                                 amount_of_points_to_lose:int|None=None):
         if not guardian:
@@ -322,11 +334,25 @@ class GuardianServices:
             settings.points_loss_enabled = apply_penalty
         if amount_of_points_to_lose is not None:
             settings.base_points_lost = amount_of_points_to_lose
+        if enable_reports is not None:
+            settings.reports_enabled = enable_reports
         
         session.add(settings)
         session.commit()
         session.refresh(settings)
         return settings, "success"
+    
+    def get_report(self, session:Session, report_id:str)->tuple[GuardianReport|None, str]:
+        if not session or not report_id:
+            return None, "session and report id are required"
+        report = session.get(GuardianReport, report_id)
+        if not report:
+            return None, f"Report of id '{report_id}' does not exist"
+        return report, "success"
+    
+    def delete_report_by_id(self, session:Session, user_making_request_id:str, report_id:str):
+        success, mes = delete_report(session, user_id=user_making_request_id, report_id=report_id)
+        return success, mes
     
     def get_reports_by_guardian_id(self, session:Session, guardian_id:str)->tuple[list[dict[str,Any]]|None, str]:
         if not guardian_id:

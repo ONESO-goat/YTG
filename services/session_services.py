@@ -1,4 +1,11 @@
-from models.models import Guardian, User, GuardianType, GuardianReport, GuardianSettings, STRICTNESS_MULTIPLIERS
+from models.models import (Guardian, 
+                           User, 
+                           GuardianType, 
+                           GuardianReport, 
+                           GuardianSettings, 
+                           STRICTNESS_MULTIPLIERS,
+                           default_restrictions_on_creation)
+
 from models.guardian_session import GuardianSession
 from .reports_service import create_report
 from .guardian_services import GuardianServices
@@ -204,10 +211,15 @@ class YTGSessionService:
             
             
         classification = classifer.engine._classify_image(image_bytes=image_bytes, return_json=True)
+        if restrictions:
+            active_restrictions = [*restrictions.default_restrictions, *restrictions.restrictions]
+        else:
+            active_restrictions = default_restrictions_on_creation()
+            
         overview = classifer.overview(
             image_overview=classification.get("summary", ""),
             guardian_settings=settings or None,
-            guardian_restrictions=restrictions or [])
+            guardian_restrictions=active_restrictions)
         
         overview["image_summary"] = classification
 
@@ -235,7 +247,9 @@ class YTGSessionService:
                     include_name=is_family_account)
                 
                 self.add_event(session=session, content=breakdown, sm_row=session_row)
-                create_report(session=session,guardian=guardian,content=breakdown)
+                if settings and settings.reports_enabled:
+                    create_report(session=session,guardian=guardian,content=breakdown)
+                    
                 penalty_applied = self.apply_point_penalty_if_needed(
                 session=session, 
                 sm_row=session_row, 

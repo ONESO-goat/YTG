@@ -11,18 +11,46 @@ import {
   Flame,
   Gem,
 } from "lucide-react";
-import { localSession } from "@/lib/api";
+import { api, localSession } from "@/lib/api";
 export function AppShell({ children, variant }: { children: ReactNode; variant: "guardian" | "individual" | "dependent"}) {
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
+  const [points, setUserPoints] = useState(0);
+  const [streak, setUserStreak] = useState(0);
   const [session, setSession] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     setSession(localSession.get());
+   
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      console.error("Session was not found, so streak and currency will default to 0. If there, ignore this error"); 
+      return;
+    }
+  (async () => {
+
+    // Fetch the user
+    const u: any = await api.getUser(session?.user_id);
+    if (!u) return;
+
+    setUserPoints(u?.currency ?? 0);
+
+    // Fetch or create the session
+ 
+    const sess: any = await api.getOrCreateSession({ 
+      user_id: u?.id ?? session?.user_id, 
+      guardian_id: session?.guardian_id 
+    });
+    
+    if (!sess) return;
+    setUserStreak(sess?.streak ?? 0);
+  })();
+}, [session]);
 
   const guardianLinks = [
     { to: "/guardian/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -53,7 +81,6 @@ export function AppShell({ children, variant }: { children: ReactNode; variant: 
     nav({ to: "/" });
   }
 
-  const points = mounted ? (session?.points ?? 0) : 0;
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6 md:px-6">
@@ -104,7 +131,7 @@ export function AppShell({ children, variant }: { children: ReactNode; variant: 
             </Link>
             <div className="ml-auto flex items-center gap-2">
               <span className="duo-chip text-warm-foreground">
-                <Flame className="h-4 w-4 text-warm" /> 0
+                <Flame className="h-4 w-4 text-warm" /> {streak.toLocaleString()}
               </span>
               <span className="duo-chip text-primary">
                 <Gem className="h-4 w-4" /> {points.toLocaleString()}

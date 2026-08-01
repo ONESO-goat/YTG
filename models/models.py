@@ -141,7 +141,7 @@ class GuardianReport(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "GuardianReport.send_to_id"}
     )
     
-    timestamp: datetime = Field(default=datetime.now().today())
+    timestamp: datetime = Field(default=datetime.today().strftime('%Y-%m-%d'))
 
 
 class Guardian(SQLModel, table=True):

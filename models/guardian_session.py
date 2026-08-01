@@ -53,10 +53,26 @@ class GuardianSession(SQLModel, table=True):
         self.last_active_at = datetime.now().today()
         
     def start(self):
+        self.check_for_streak()
         if not self.active:
             self.last_active_at = datetime.now().today()
-            
+        
         self.active = True
         
     def end(self):
         self.active = False
+        
+    def check_for_streak(self):
+        if not self.last_active_at: return
+        
+        today = datetime.today()
+        time_distance = (today - self.last_active_at).total_seconds() / 3600
+        
+        # Must wait at least 12 hours (prevents spamming), but less than 36 hours
+        if 12 <= time_distance <= 36:
+            self.streak += 1
+            self.last_active_at = today
+        # Missed the window
+        elif time_distance > 36:
+            self.streak = 1
+  

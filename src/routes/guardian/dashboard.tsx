@@ -95,7 +95,7 @@ function Dashboard() {
       {/* Rest of your JSX remains exactly the same */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-semibold">Household overview</h1>
+          <h1 className="font-display text-3xl font-semibold">{(!isPersonalAccount && !userIsDependent) ? "Household overview"  : "Guardian overview"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Everything happening under your Guardian, at a glance.
           </p>

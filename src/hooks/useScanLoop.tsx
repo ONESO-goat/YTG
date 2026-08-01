@@ -26,6 +26,7 @@ export function useScanLoop(
 
   async function start(sessId: string | null = null) {
     let activeSessionId = sessId || sessionId;
+   
     if (!activeSessionId) throw new Error("No sessionId provided");
 
     const media = await navigator.mediaDevices.getDisplayMedia({

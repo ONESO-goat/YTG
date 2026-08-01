@@ -44,7 +44,7 @@ function Onboarding() {
             {(
               [
                 { id: "personal", label: "For myself", icon: User, desc: "Solo — no guardian involved." },
-                { id: "family", label: "For my family", icon: Users, desc: "Connect one or more dependents." },
+                { id: "family", label: `For my family (unavailable)`, icon: Users, desc: "Connect one or more dependents." },
               ] as const
             ).map((o) => (
               <button

@@ -38,7 +38,7 @@ function Monitor() {
     } else {
       const u: any = await api.getUser(session?.user_id);
       if (u){
-        console.log(`THE USERS POINTS: ${u.currency}`);
+
         setPoints(u.currency || 0);}
     }
   })();
@@ -102,9 +102,10 @@ function Monitor() {
             {user_id: session?.user_id!, guardian_id: session?.guardian_id!}
         )
         if (!gS) return;
-        console.log(gS?.id);
+        console.log(`SESSION POINTS: ${gS?.points_pending}`);
       await start(gS?.id || null);
     } catch (e) {
+      handleStop();
       toast.error(`Screen share is required to start a session: ${e}`);
     }
   }

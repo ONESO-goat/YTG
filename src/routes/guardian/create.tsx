@@ -41,9 +41,9 @@ function CreateGuardian() {
         name: name || (type === "family" ? "Family Guardian" : "Personal Guardian"),
         guardian_type: type,
       });
-      console.log(`ID BEFORE GID: ${await r?.id}`);
+
       let gid = pickId(r, "guardian_id", "id");
-      console.log(`ID AFTER GID: ${gid}`);
+   
       if (!gid) {
         gid = r.id;
         if (!gid){

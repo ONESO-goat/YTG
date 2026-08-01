@@ -6,7 +6,7 @@ dotenv.load_dotenv()
 
     
 class Config:
-    gemini_api_key = os.getenv("GEMINI_API_KEY1") or ''
+    gemini_api_key = os.getenv("GEMINI_API_KEY2") or ''
 
     worker_file = "data/workers.json"
     

@@ -31,7 +31,7 @@ class GuardianSession(SQLModel, table=True):
     last_scan_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
-    last_active_at: datetime = Field(default=None)
+    last_active_at: datetime = Field(default=None, nullable=True)
     
     streak: int = Field(default=0)
     

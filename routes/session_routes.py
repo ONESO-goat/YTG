@@ -91,11 +91,12 @@ def start_session(
             detail=f"Guardian '{payload.guardian_id}' not found",
         )
 
-    ytg_session = session_service.get_or_create(
+    ytg_session, was_created = session_service.get_or_create(
         session=session, user=user, guardian=guardian
     )
     ytg_session.start()
     session.commit()
+    session.refresh(ytg_session)
     return ytg_session
 
 @router.post("/stop", status_code=status.HTTP_200_OK)
@@ -119,11 +120,12 @@ def fetch_stop_session(
             detail=f"Guardian '{payload.guardian_id}' not found",
         )
 
-    ytg_session = session_service.get_or_create(
+    ytg_session, was_created = session_service.get_or_create(
         session=session, user=user, guardian=guardian
     )
     ytg_session.end()
     session.commit()
+    session.refresh(ytg_session)
     return ytg_session
 
 @router.get("/{session_id}")

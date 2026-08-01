@@ -61,7 +61,7 @@ class YTGSessionService:
                     user = session.get(User, connection.user_id)
                     if not user:
                         continue
-                    s = self.get_or_create(
+                    s, was_created = self.get_or_create(
                         session=session,
                         user=user, 
                         guardian=guardian
@@ -95,7 +95,7 @@ class YTGSessionService:
             return None, f"No session under the id '{session_id}'"
         return sess, "success"
     
-    def get_or_create(self, session: Session, user: 'User', guardian: 'Guardian') -> GuardianSession:
+    def get_or_create(self, session: Session, user: 'User', guardian: 'Guardian') -> tuple[GuardianSession,bool]:
         existing = session.exec(
             select(GuardianSession).where(
                 GuardianSession.user_id == user.id,
@@ -103,13 +103,14 @@ class YTGSessionService:
             )
         ).first()
         if existing:
-            return existing
+            session.refresh(existing)
+            return existing, False
 
         row = GuardianSession(user_id=user.id, guardian_id=guardian.id)
         session.add(row)
         session.commit()
         session.refresh(row)
-        return row
+        return row, True
 
     def end_of_the_day_disprute(self, session:Session, guardian:Guardian):
         try:
@@ -206,8 +207,11 @@ class YTGSessionService:
                 
                 
         elif was_already_warning:
-            session_row.tracking_start_at = datetime.utcnow()
-            session_row.target_duration_seconds = 180
+            # If the user wasnt flagged and already has a warning, start the timer on how long
+            # they avoid this type of content
+            
+            # session_row.tracking_start_at = datetime.utcnow()
+            # session_row.target_duration_seconds = 180
             self.start_avoidance_timer(session, session_row)
 
         completed = self.update_and_check_timer(session=session, sm_row=session_row)
@@ -229,9 +233,13 @@ class YTGSessionService:
     
             elapsed = (datetime.utcnow() - sm_row.tracking_start_at).total_seconds()
             if elapsed >= sm_row.target_duration_seconds:
+                user = session.get(User, sm_row.user_id)
+                if not user:
+                    return False
                 sm_row.warning_active = False
                 sm_row.tracking_start_at = None
-                sm_row.points_pending += 25
+                #sm_row.points_pending += 25
+                user.currency += 25
                 session.commit()
                 return True
             return False
@@ -259,7 +267,8 @@ class YTGSessionService:
         sm_row.warning_active = True
         sm_row.tracking_start_at = None
 
-    def start_avoidance_timer(self, session:Session, sm_row: GuardianSession, target_seconds: int = 180) -> None:
+    def start_avoidance_timer(self, session:Session, sm_row: GuardianSession, target_seconds: int = 2) -> None:
+        """For testing, 2-3 seconds"""
         if sm_row.warning_active and sm_row.tracking_start_at is None:
             sm_row.tracking_start_at = datetime.utcnow()
             sm_row.target_duration_seconds = target_seconds

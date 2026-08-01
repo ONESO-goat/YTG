@@ -3,6 +3,7 @@ from helpers.config import Config
 from helpers.prompt import Prompts
 import json
 from typing import Any
+import base64
 from google import genai
             
 class Engine:
@@ -74,9 +75,15 @@ class Engine:
         
         else:  # Ollama
             try:
+                encoded_image = base64.b64encode(image_bytes).decode('utf-8')
+            
                 m = [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"<<<IMAGE>>>\n{image_bytes}\n<<<IMAGE>>>"}
+                    {
+                        "role": "user", 
+                        "content": "Please analyze this image.",
+                        "images": [encoded_image]
+                    }
                 ]
                 
                 response = ollama.chat(
@@ -88,9 +95,9 @@ class Engine:
                 
                 content = response['message']['content']
                 if return_json:
-                    content = json.loads(response['message']['content'])
+                    content = json.loads(response['message']['content'] or '[]')
                 return content
-                
+                    
             except Exception as e:
                 print(f"⚠️ [engine.classify_image] Ollama error: {e}")
                 return '[]'

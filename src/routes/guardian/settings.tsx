@@ -55,12 +55,10 @@ function SettingsPage() {
       try {
         const r: any = await api.fetchRestrictions(session.guardian_id!);
         const c: any = await api.connections(session.guardian_id!);
-        console.log("RAW CONNECTIONS RESPONSE:", c);
-
+  
         // Fallback in case the API wraps the array in an object property (adjust key if needed, e.g., c.data or c.connections)
         //const connectionList = Array.isArray(c) ? c : (c?.connections || c?.data || []);
 
-        console.log(`GUARDIAN CONNECTS: ${c.length}`);
         setRestrictions(r || []);
         setConnections(c || []);
       } catch {}
@@ -126,7 +124,7 @@ function SettingsPage() {
   async function save() {
     if (!session?.guardian_id) return;
     try {
-      console.log(`WARNING: ${warning} -- APPLAUSE: ${applause}`);
+
       await api.updateSettings(session.guardian_id, {
         strictness,
         warning_message: warning,

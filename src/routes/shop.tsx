@@ -28,13 +28,21 @@ function Shop() {
 
   // 2. Read localSession SAFELY on the client after mount
   useEffect(() => {
+  (async () => {
+    
     const activeSession = localSession.get();
     if (!activeSession) {
       nav({ to: "/auth" });
       return;
     }
+    const u: any = await api.getUser(activeSession?.user_id);
+    if (!u) return;
     setSession(activeSession);
-    setPoints(activeSession.points || 0);
+    setPoints(u?.currency );
+
+})();
+
+
   }, [nav]);
 
   // 3. Fetch rewards list once mounted

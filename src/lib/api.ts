@@ -80,8 +80,14 @@ export const api = {
   guardianOff: (guardianId: string) =>
     jfetch(`/sessions/${guardianId}/off`, { method: "POST" }),
 
-  createSession: (body: { user_id: string; guardian_id: string }) =>
+  getOrCreateSession: (body: { user_id: string; guardian_id: string }) =>
     jfetch(`/sessions/create`, { method: "POST", body: JSON.stringify(body) }),
+
+  startSession: (body: { user_id: string; guardian_id: string }) =>
+    jfetch(`/sessions/start`, { method: "POST", body: JSON.stringify(body) }),
+
+  stopSession: (body: { user_id: string; guardian_id: string }) =>
+    jfetch(`/sessions/stop`, { method: "POST", body: JSON.stringify(body) }),
 
   getSession: (id: string) => jfetch(`/sessions/${id}`),
 

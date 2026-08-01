@@ -49,7 +49,7 @@ function AuthPage() {
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
   const [login, setLogin] = useState({ username: "", password: "" });
-  const [signup, setSignup] = useState({ username: "", email: "", password: "", user_type: "" });
+  const [signup, setSignup] = useState({ username: "", email: "", password: "", user_type: "individual" });
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -131,7 +131,8 @@ function AuthPage() {
                   <Label htmlFor="s-pw">Password</Label>
                   <Input id="s-pw" type="password" required value={signup.password} onChange={(e) => setSignup({ ...signup, password: e.target.value })} />
                 </div>
-               <div>
+
+{/* <div>
   <Label htmlFor="s-pw">User Type</Label>
   <select
     id="s-pw"
@@ -147,7 +148,7 @@ function AuthPage() {
     <option value="caregiver">Caregiver</option>
     <option value="individual">Individual</option>
   </select>
-</div>
+</div> */}
                 <button type="submit" className="duo-btn duo-btn-lg w-full" disabled={busy}>
                   {busy ? "Creating..." : "Create account"}
                 </button>

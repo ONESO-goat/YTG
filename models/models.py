@@ -50,6 +50,7 @@ class GuardianType(Enum):
 
 class RewardType(Enum):
     GIFT_CARD = "gift_card"
+    STREAK_FREEZE = "streak_freeze"
 
 
 class RelationshipType(Enum):

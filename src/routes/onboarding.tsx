@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Users, User, Shield } from "lucide-react";
+import { toast } from "sonner";
 import { localSession } from "@/lib/api";
 
 export const Route = createFileRoute("/onboarding")({
@@ -18,6 +19,10 @@ function Onboarding() {
   }, [nav]);
 
   function next() {
+    if (type !== "personal"){
+      toast.error("Family accounts are coming in the future!")
+      return;
+    }
     nav({ to: "/guardian/create", search: { type } });
   }
 

@@ -11,7 +11,8 @@ class GuardianSession(SQLModel, table=True):
 
     user_id: str = Field(foreign_key="user.id")
     guardian_id: str = Field(foreign_key="guardian.id")
-
+    active: bool = Field(default=False)
+    
     warning_active: bool = Field(default=False)
     tracking_start_at: Optional[datetime] = Field(default=None)  # see #2
     target_duration_seconds: int = Field(default=0)
@@ -50,3 +51,12 @@ class GuardianSession(SQLModel, table=True):
         self.last_scan_at = None
         
         self.last_active_at = datetime.now().today()
+        
+    def start(self):
+        if not self.active:
+            self.last_active_at = datetime.now().today()
+            
+        self.active = True
+        
+    def end(self):
+        self.active = False

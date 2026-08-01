@@ -32,14 +32,14 @@ class YTGSessionService:
                 session.commit()
                 return True, "No sessions found under the guardian. Turned off"
             
-            sess_count = 0
-            for running_session in sessions:
-                session.delete(running_session)
-                sess_count += 1
+            # sess_count = 0
+            # for running_session in sessions:
+            #     session.delete(running_session)
+            #     sess_count += 1
             guardian.on = False
             session.commit()
             session.refresh(guardian)
-            return True, f"Guardian is now off, removed {sess_count} sessions"
+            return True, f"Guardian is now off, removed {len(sessions)} sessions"
                     
     def turn_on_guardian(self, session:Session, guardian_id:str)->tuple[list[GuardianSession]|None, str]:
             """Turn on the guardian. When turned on, the sessions are automatically set"""
@@ -61,13 +61,15 @@ class YTGSessionService:
                     user = session.get(User, connection.user_id)
                     if not user:
                         continue
-                    s = GuardianSession(
-                        user_id=user.id,
-                        guardian_id=guardian.id
+                    s = self.get_or_create(
+                        session=session,
+                        user=user, 
+                        guardian=guardian
                     )
+                    s.active = True
                     new_sessions.append(s)
                 guardian.on = True
-                session.add_all(new_sessions)
+         
                 session.commit()
                 session.refresh(guardian)
                 return new_sessions, f"{len(new_sessions)} new sessions set"
@@ -206,11 +208,10 @@ class YTGSessionService:
         elif was_already_warning:
             session_row.tracking_start_at = datetime.utcnow()
             session_row.target_duration_seconds = 180
-            self.start_avoidance_timer(session_row)
+            self.start_avoidance_timer(session, session_row)
 
         completed = self.update_and_check_timer(session=session, sm_row=session_row)
 
-        session.add(session_row)
         session.commit()
 
         return {
@@ -230,7 +231,7 @@ class YTGSessionService:
             if elapsed >= sm_row.target_duration_seconds:
                 sm_row.warning_active = False
                 sm_row.tracking_start_at = None
-                sm_row.points_pending += 10
+                sm_row.points_pending += 25
                 session.commit()
                 return True
             return False
@@ -258,10 +259,11 @@ class YTGSessionService:
         sm_row.warning_active = True
         sm_row.tracking_start_at = None
 
-    def start_avoidance_timer(self, sm_row: GuardianSession, target_seconds: int = 180) -> None:
+    def start_avoidance_timer(self, session:Session, sm_row: GuardianSession, target_seconds: int = 180) -> None:
         if sm_row.warning_active and sm_row.tracking_start_at is None:
             sm_row.tracking_start_at = datetime.utcnow()
             sm_row.target_duration_seconds = target_seconds
+            session.commit()
             
     def add_event(self, 
                   session:Session, 

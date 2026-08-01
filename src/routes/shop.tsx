@@ -11,10 +11,11 @@ export const Route = createFileRoute("/shop")({
 });
 
 const FALLBACK = [
-  { id: "r1", name: "Dunkin Gift Card", reward_amount: 10, reward_cost: 1500, reward_type: "gift_card" },
-  { id: "r2", name: "Amazon Gift Card", reward_amount: 25, reward_cost: 3200, reward_type: "gift_card" },
-  { id: "r3", name: "Spotify Premium (1 month)", reward_amount: 1, reward_cost: 1800, reward_type: "subscription" },
-  { id: "r4", name: "Extra screen time (30 min)", reward_amount: 30, reward_cost: 400, reward_type: "custom" },
+  { id: "r1", name: "$5 Gift Card of your choice!", reward_amount: 5, reward_cost: 31000, reward_type: "gift_card" },
+  { id: "r2", name: "$25 Gift Card of your choice!", reward_amount: 25, reward_cost: 182000, reward_type: "gift_card" },
+  { id: "r3", name: "$100 Gift Card of your choice!", reward_amount: 100, reward_cost: 364000, reward_type: "gift_card" },
+  { id: "r4", name: "Streak freeze", reward_amount: 0, reward_cost: 5000, reward_type: "streak_freeze" },
+  { id: "r5", name: "Extra screen time (30 min)", reward_amount: 30, reward_cost: 400, reward_type: "custom" },
 ];
 
 function Shop() {

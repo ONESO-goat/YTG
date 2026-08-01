@@ -114,14 +114,18 @@ def _add_rewards(session:Session):
         return
     try:
         starters = [
-            ("dunkin gift card", RewardType.GIFT_CARD, 25, 18250), 
-            ("fortnite gift card", RewardType.GIFT_CARD, 25, 18250),
-            ("playstation gift card", RewardType.GIFT_CARD, 100, 36500),
-            ("amazon gift card", RewardType.GIFT_CARD, 10, 9125),
-            ("starbucks gift card", RewardType.GIFT_CARD, 25, 18250),
-            ("target gift card", RewardType.GIFT_CARD, 25, 18250),
-            ("xbox gift card", RewardType.GIFT_CARD, 50, 25000),
-            ("apple gift card", RewardType.GIFT_CARD, 100, 36500),
+            ("$5 gift card of your choice!", RewardType.GIFT_CARD, 5, 31000), 
+            ("$25 gift card of your choice!", RewardType.GIFT_CARD, 25, 182000),
+            ("$100 gift card of your choice!", RewardType.GIFT_CARD, 100, 365000),
+            ("Streak freeze", RewardType.STREAK_FREEZE, 0, 10000)
+            # ("dunkin gift card", RewardType.GIFT_CARD, 25, 18250), 
+            # ("fortnite gift card", RewardType.GIFT_CARD, 25, 18250),
+            # ("playstation gift card", RewardType.GIFT_CARD, 100, 36500),
+            # ("amazon gift card", RewardType.GIFT_CARD, 10, 9125),
+            # ("starbucks gift card", RewardType.GIFT_CARD, 25, 18250),
+            # ("target gift card", RewardType.GIFT_CARD, 25, 18250),
+            # ("xbox gift card", RewardType.GIFT_CARD, 50, 25000),
+            # ("apple gift card", RewardType.GIFT_CARD, 100, 36500),
             ]
         for reward in starters:
             time.sleep(0.1)

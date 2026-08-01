@@ -165,6 +165,7 @@ class GuardianServices:
             user_name=user.name,
             relationship_with_owner=connection_type
         )
+        
         session.add(connection)
         session.commit()
         session.refresh(connection)

@@ -112,6 +112,9 @@ export function useScanLoop(
     } else {
       setState("clear");
     }
+    if (result.points_awarded) {
+      sendWarningNotification({body: `${warningMessages.applause} (25 points given!)`});
+    }
     setLastResult(result);
     return result;
   }

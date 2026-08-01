@@ -88,6 +88,7 @@ function Monitor() {
 //     onResult: handleResult,
 //   });
 
+
   async function handleStart() {
     try {
 
@@ -97,7 +98,7 @@ function Monitor() {
         toast.message("Enable notifications to get alerts outside this tab.");
       }
 
-        const gS: any = await api.createSession(
+        const gS: any = await api.startSession(
             {user_id: session?.user_id!, guardian_id: session?.guardian_id!}
         )
         if (!gS) return;
@@ -105,6 +106,20 @@ function Monitor() {
       await start(gS?.id || null);
     } catch (e) {
       toast.error(`Screen share is required to start a session: ${e}`);
+    }
+  }
+
+  async function handleStop() {
+    try {
+
+
+        const gS: any = await api.stopSession(
+            {user_id: session?.user_id!, guardian_id: session?.guardian_id!}
+        )
+
+      stop();
+    } catch (e) {
+      toast.error(`Error trying to stop session: ${e}`);
     }
   }
 
@@ -193,7 +208,7 @@ function Monitor() {
               </div>
             )}
 
-            <Button variant="outline" onClick={stop}>
+            <Button variant="outline" onClick={handleStop}>
               <Square className="mr-2 h-4 w-4" /> Stop session
             </Button>
           </div>

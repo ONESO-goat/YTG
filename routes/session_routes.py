@@ -29,6 +29,9 @@ class CreateSessionRequest(BaseModel):
     user_id: str
     guardian_id: str
 
+class StartSessionRequest(BaseModel):
+    user_id: str
+    guardian_id: str
 
 class AddEventRequest(BaseModel):
     content: str
@@ -67,6 +70,61 @@ def get_or_create_session(
     )
     return ytg_session
 
+@router.post("/start", status_code=status.HTTP_200_OK)
+def start_session(
+    payload: StartSessionRequest,
+    session: Session = Depends(get_session),
+):
+    user = user_service.get_user_by_id(session, user_id=payload.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{payload.user_id}' not found",
+        )
+
+    guardian = guardian_service.get_guardian_by_id(
+        session, guardian_id=payload.guardian_id
+    )
+    if not guardian:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Guardian '{payload.guardian_id}' not found",
+        )
+
+    ytg_session = session_service.get_or_create(
+        session=session, user=user, guardian=guardian
+    )
+    ytg_session.start()
+    session.commit()
+    return ytg_session
+
+@router.post("/stop", status_code=status.HTTP_200_OK)
+def fetch_stop_session(
+    payload: StartSessionRequest,
+    session: Session = Depends(get_session),
+):
+    user = user_service.get_user_by_id(session, user_id=payload.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{payload.user_id}' not found",
+        )
+
+    guardian = guardian_service.get_guardian_by_id(
+        session, guardian_id=payload.guardian_id
+    )
+    if not guardian:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Guardian '{payload.guardian_id}' not found",
+        )
+
+    ytg_session = session_service.get_or_create(
+        session=session, user=user, guardian=guardian
+    )
+    ytg_session.end()
+    session.commit()
+    return ytg_session
 
 @router.get("/{session_id}")
 def get_session_by_id(session_id: str, session: Session = Depends(get_session)):

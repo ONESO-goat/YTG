@@ -29,7 +29,7 @@ export function AppShell({ children, variant }: { children: ReactNode; variant: 
 
   useEffect(() => {
     if (!session) {
-      console.error("Session was not found, so streak and currency will default to 0. If there, ignore this error"); 
+      //console.error("Session was not found, so streak and currency will default to 0. If there, ignore this error"); 
       return;
     }
   (async () => {

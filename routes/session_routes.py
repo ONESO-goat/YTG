@@ -41,6 +41,12 @@ class AddEventRequest(BaseModel):
 @router.get("/")
 def fetch_all_session(session:Session=Depends(get_session)):
     return session_service.get_all_sessions(session=session)
+
+
+@router.post("/disprute/all")
+def fetch_end_of_the_day_disprutes(session:Session=Depends(get_session)):
+    amount = session_service.end_of_the_day_disprute_all(session)
+    return f"{amount} sessions successfully reset."
 # ------------------------------------------------------------------------------
 # Session Endpoints
 # ------------------------------------------------------------------------------

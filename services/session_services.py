@@ -2,6 +2,7 @@ from models.models import Guardian, User, GuardianType, GuardianReport, Guardian
 from models.guardian_session import GuardianSession
 from .reports_service import create_report
 from .guardian_services import GuardianServices
+import time
 from .gameify_service import Gameify
 from sqlmodel import Session, select
 from agent.bot import ScreenClassifier
@@ -113,7 +114,7 @@ class YTGSessionService:
         session.refresh(row)
         return row, True
 
-    def end_of_the_day_disprute(self, session:Session, guardian:Guardian):
+    def end_of_the_day_disprute_guardian(self, session:Session, guardian:Guardian):
         try:
             if not guardian:
                 return False,"Guardian is required"
@@ -126,14 +127,15 @@ class YTGSessionService:
                 user = session.get(User, sess.user_id)
                 if not user:
                     continue
-                points = sess.points_pending
+                #points = sess.points_pending
                 total_warning_count = sess.total_alerts
                 warnings_ignored_count = sess.amount_of_warnings_ignored
                 warnings_listened_count = sess.amount_of_warnings_listened
                 
                 result = gameify_service.compute_daily_settlement(
                     avoided_count=warnings_listened_count,
-                    ignored_count=warnings_ignored_count
+                    ignored_count=warnings_ignored_count,
+                    amount_of_warnings=total_warning_count
                 )
                 gameify_service.add_points(session=session, user=user, amount=result.get("totoal", 0))
                 sess.reset()
@@ -143,6 +145,40 @@ class YTGSessionService:
             session.rollback()
             raise ValueError(f"Dangerous error occured during session daily reset: {ex}")
         
+    def end_of_the_day_disprute_all(self, session:Session):
+            try:
+                
+                all_sessions = self.get_all_sessions(session=session)
+                if not all_sessions:
+                    return True, "empty List"
+                count = 0
+                
+                for sess in all_sessions:
+                   
+                    time.sleep(0.1)
+                    user = session.get(User, sess.user_id)
+                    if not user:
+                        continue
+                    total_warning_count = sess.total_alerts
+                    warnings_ignored_count = sess.amount_of_warnings_ignored
+                    warnings_listened_count = sess.amount_of_warnings_listened
+                    
+                    result = gameify_service.compute_daily_settlement(
+                        avoided_count=warnings_listened_count,
+                        ignored_count=warnings_ignored_count,
+                        amount_of_warnings=total_warning_count
+                    )
+                    gameify_service.add_points(session=session, user=user, amount=result.get("total", 0))
+                    sess.reset()
+                    count+=1
+                session.commit()
+                return count
+  
+            except Exception as ex:
+                session.rollback()
+                raise ValueError(f"CRITIAL Dangerous error occured during session daily reset: {ex}")
+            
+            
     def get_users_session(self, session:Session, user: 'User'):
         statement = session.exec(select(GuardianSession).where(GuardianSession.user_id == user.id)).first()
         return statement
@@ -184,6 +220,7 @@ class YTGSessionService:
         if overview["flagged"]:
             session_row.warning_active = True
             session_row.tracking_start_at = None
+            session_row.total_alerts += 1
             
             if not was_already_warning:
                 is_family_account = guardian.guardian_type == GuardianType.FAMILY

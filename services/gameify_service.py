@@ -69,6 +69,7 @@ class Gameify:
         self,
         avoided_count: int,
         ignored_count: int,
+        amount_of_warnings: int,
         daily_baseline: int = 1000,
         per_avoidance_bonus: int = 25,
         avoided_decay: float = 0.04,   # % multiplier lost per avoided warning
@@ -84,8 +85,16 @@ class Gameify:
 
         baseline_component = round(daily_baseline * multiplier)
         streak_component = min(streak_days, 10) * streak_bonus_per_day  # cap so it doesn't run away
-
-        total = raw_points + baseline_component + streak_component
+        
+        if amount_of_warnings in [0,1]:
+            total_alerts_reward = 100
+        elif amount_of_warnings >= 10:
+            total_alerts_reward = 0
+        else:
+            c = ((( amount_of_warnings * 100 ) / 100) * 10) + 10
+            total_alerts_reward = max(0, 100 - c)
+        
+        total = raw_points + baseline_component + streak_component + total_alerts_reward
         return {
             "raw_points": raw_points,
             "multiplier": multiplier,

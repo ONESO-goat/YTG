@@ -70,7 +70,7 @@ export const api = {
 
   updateSettings: (id: string, body: Record<string, any>) =>
     jfetch(`/guardians/${id}/settings/update`, { method: "PATCH", body: JSON.stringify(body) }),
-  
+
   reports: (id: string) => jfetch(`/guardians/reports/${id}`),
 
   // Sessions
@@ -85,10 +85,10 @@ export const api = {
   getOrCreateSession: (body: { user_id: string; guardian_id: string }) =>
     jfetch(`/sessions/create`, { method: "POST", body: JSON.stringify(body) }),
 
-  startSession: (body: { user_id: string; guardian_id: string }) =>
+  startSession: (body: { session_id: string; user_id: string; guardian_id: string }) =>
     jfetch(`/sessions/start`, { method: "POST", body: JSON.stringify(body) }),
 
-  stopSession: (body: { user_id: string; guardian_id: string }) =>
+  stopSession: (body: { session_id: string; user_id: string; guardian_id: string}) =>
     jfetch(`/sessions/stop`, { method: "POST", body: JSON.stringify(body) }),
 
   getSession: (id: string) => jfetch(`/sessions/${id}`),
@@ -114,6 +114,7 @@ export const api = {
       description: string;
       warning_active: boolean;
       points_awarded: boolean;
+      shutdown: boolean;
     }>;
   },
 

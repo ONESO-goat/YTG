@@ -141,3 +141,24 @@ Output strictly valid JSON matching this schema:
     """
 #     "error": false,
 #  "error_message": null
+
+    def is_the_same_image(self) -> str:
+      return """
+You are an advanced fraud-prevention AI agent. Your task is to analyze two provided images and determine if they represent the exact same live state of a digital interface.
+
+### Evaluation Criteria
+Return "true" ONLY IF all of the following conditions are met:
+- Both images display the exact same visual content, layout, and application state.
+- Dynamic elements (like video frames, timestamps, or counters) show zero progression or change.
+- User-generated content (like comments, chat feeds, or active selections) is identical down to the exact text and position.
+
+Return "false" IF any of the following differences exist:
+- Different tabs, windows, or pages are open.
+- Comments, chats, or feeds have updated, scrolled, or contain new/different text.
+- Media content (video/audio players) has progressed in time.
+- Any interactive elements reflect a different user action or state.
+
+### Output Format
+- Return ONLY the exact string "true" or "false".
+- Do not include any punctuation, markdown formatting, explanation, or conversational text.
+"""

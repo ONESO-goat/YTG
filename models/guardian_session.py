@@ -35,6 +35,16 @@ class GuardianSession(SQLModel, table=True):
     points_gain_daily_limit: int = Field(default=10000)
     minute_timer: Optional[datetime] = Field(default=None, nullable=True)
     
+    previous_image_bytes: list[bytes] = Field(
+        default_factory=list, 
+        sa_column=Column(MutableList.as_mutable(JSON)))
+    
+    total_same_image_counter_for_whole_session: int = Field(default=0)
+    same_image_counter: int = Field(default=0)
+    shutdown_counter: int = Field(default=0)
+    # If the user faces 6 same image counter counts, the session is shutdown. 
+    # If the shutdown counter extends over 15, the user is marked in the system
+    
     streak: int = Field(default=0)
     
     def reset(self):
@@ -52,6 +62,9 @@ class GuardianSession(SQLModel, table=True):
         self.points_pending = 0
         
         self.last_scan_at = None
+        self.previous_image_bytes = []
+        self.same_image_counter = 0
+        self.total_same_image_counter_for_whole_session = 0
         
         self.last_active_at = datetime.now().today()
         

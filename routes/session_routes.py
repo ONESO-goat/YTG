@@ -30,8 +30,9 @@ class CreateSessionRequest(BaseModel):
     guardian_id: str
 
 class StartSessionRequest(BaseModel):
-    user_id: str
-    guardian_id: str
+    session_id: str = ""
+    user_id: str = ""
+    guardian_id: str = ""
 
 class AddEventRequest(BaseModel):
     content: str
@@ -81,6 +82,20 @@ def start_session(
     payload: StartSessionRequest,
     session: Session = Depends(get_session),
 ):
+    if not any(payload.model_dump().values()):
+        raise HTTPException(
+            status_code=400, 
+            detail="User and guardian info or the session id are required"
+        )
+    if payload.session_id:
+        ytg_session, msg = session_service.get_YTGSession(session=session, session_id=payload.session_id)
+        if not ytg_session:
+            raise HTTPException(status_code=400, detail=msg)
+        ytg_session.end()
+        session.commit()
+        session.refresh(ytg_session)
+        return ytg_session
+    
     user = user_service.get_user_by_id(session, user_id=payload.user_id)
     if not user:
         raise HTTPException(
@@ -110,6 +125,20 @@ def fetch_stop_session(
     payload: StartSessionRequest,
     session: Session = Depends(get_session),
 ):
+    if not any(payload.model_dump().values()):
+        raise HTTPException(
+                status_code=400, 
+                detail="User and guardian info or the session id are required"
+            )
+    if payload.session_id:
+        ytg_session, msg = session_service.get_YTGSession(session=session, session_id=payload.session_id)
+        if not ytg_session:
+            raise HTTPException(status_code=400, detail=msg)
+        ytg_session.end()
+        session.commit()
+        session.refresh(ytg_session)
+        return ytg_session
+    
     user = user_service.get_user_by_id(session, user_id=payload.user_id)
     if not user:
         raise HTTPException(

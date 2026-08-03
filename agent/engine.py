@@ -2,6 +2,10 @@ import ollama
 from helpers.config import Config
 from helpers.prompt import Prompts
 import json
+import base64
+import json
+from google.genai import types
+
 from typing import Any
 import base64
 from google import genai
@@ -36,7 +40,87 @@ class Engine:
                 print(f"⚠ Ollama model '{self.ollama_model}' not found")
                 print("  Run: ollama pull qwen3:0.6b")
     
+
+    def _is_the_same_image(self,
+                        new_image_bytes: bytes, 
+                        previous_images: list[bytes],
+                        system_prompt: str|None = None, 
+                        return_json: bool = False
+                       ) -> bool:
     
+        if not previous_images or not new_image_bytes:
+            return False
+            
+        if system_prompt is None:
+            system_prompt = Prompts().is_the_same_image()
+            
+        previous_image = previous_images[-1]
+        
+        if self.backend == 'gemini':
+            try:
+                user_content = types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_text(text="Here is the NEW image to evaluate:"),
+                        types.Part.from_bytes(data=new_image_bytes, mime_type="image/png"),
+                        types.Part.from_text(text="Here is the PREVIOUS image for comparison:"),
+                        types.Part.from_bytes(data=previous_image, mime_type="image/png")
+                    ]
+                )
+                        
+                response = self.client.models.generate_content(
+                    model=self.llm, 
+                    contents=[user_content], 
+                    config=types.GenerateContentConfig( 
+                        system_instruction=system_prompt,
+                        response_mime_type="application/json" if return_json else None
+                    )
+                )
+                        
+                content = response.text or ""
+                
+                if return_json:
+                    parsed = json.loads(content or '{}')
+                    return parsed # or handle json return as needed
+                    
+                return "true" in content.lower().strip()
+                
+            except Exception as e:
+                print(f"[engine.classify_image gemini] ⚠️ Gemini error: {e}")
+                return False
+                
+        else:  # Ollama
+            try:
+                encoded_new = base64.b64encode(new_image_bytes).decode('utf-8')
+                encoded_prev = base64.b64encode(previous_image).decode('utf-8')
+                    
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user", 
+                        "content": "Please compare these two images. The first is the NEW image, the second is the PREVIOUS image.",
+                        "images": [encoded_new, encoded_prev]
+                    }
+                ]
+                        
+                response = ollama.chat(
+                    model=self.ollama_model,
+                    messages=messages,
+                    format="json" if return_json else None,
+                    options={'temperature': 0.2}
+                )
+                        
+                content = response['message']['content'] or ""
+                
+                if return_json:
+                    return json.loads(content or '{}')
+                    
+                return "true" in content.lower().strip()
+                            
+            except Exception as e:
+                print(f"⚠️ [engine.classify_image] Ollama error: {e}")
+                return False
+            
     def _classify_image(self, 
                         image_bytes: bytes, 
                         system_prompt: str=Prompts().image_classification_prompt(), 

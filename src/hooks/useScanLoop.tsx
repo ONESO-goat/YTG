@@ -95,7 +95,17 @@ export function useScanLoop(
 
     const result = await api.scan(activeSessionId, blob);
     setLastResult(result);
+    if (result?.shutdown){
+      // Handle shutdown logic
 
+      api.stopSession({session_id: activeSessionId, user_id: "", guardian_id: ""}).catch(() => {});
+      sendWarningNotification({
+        title: "YTG — inactivity shutdown",
+        body: "A shutdown has been initiated."
+      });
+      stop();
+      return result;
+    }
     const is_flagged = result?.flagged || result?.warning_active;
     if (is_flagged) {
       const msgText = msgsRef.current?.warning || "Please move away from this content.";

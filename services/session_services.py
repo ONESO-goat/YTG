@@ -197,11 +197,39 @@ class YTGSessionService:
         session_row: GuardianSession,
         image_bytes: bytes,
     ) -> dict:
+        
+        time.sleep(0.1)
         stuff, mes = guardian_services.get_guardian_data(
             session=session, 
             guardian_id=session_row.guardian_id
             )
         
+        # Check wheater the images are the same. Do this first for quicker performence
+        session_row.previous_image_bytes.append(image_bytes)
+        is_the_same_image = classifer.engine._is_the_same_image(new_image_bytes=image_bytes, previous_images=session_row.previous_image_bytes)
+        
+        if is_the_same_image:
+            count = session_row.same_image_counter + 1
+            session_row.same_image_counter += 1
+            session_row.total_same_image_counter_for_whole_session += 1
+            if count >= 6:
+                session_row.shutdown_counter += 1
+                session_row.same_image_counter = 3
+                # prevent users rebooting constantly 
+                   
+                session_row.minute_timer = None
+                session.commit()
+                return {
+            "flagged": False,
+            "description": "",
+            "warning_active": session_row.warning_active,
+            "points_awarded": False,
+            "points_lost": False,
+            "shutdown": True # Set this to true
+        }
+            else:
+                session_row.same_image_counter = 0
+                
         guardian:Guardian|None = stuff.get("guardian")
         if not guardian:
             raise ValueError("Guardian does not exist during session process")
@@ -209,7 +237,8 @@ class YTGSessionService:
         settings = stuff.get("settings")
         restrictions = stuff.get("restrictions")
             
-            
+        
+              
         classification = classifer.engine._classify_image(image_bytes=image_bytes, return_json=True)
         if restrictions:
             active_restrictions = [*restrictions.default_restrictions, *restrictions.restrictions]
@@ -289,7 +318,8 @@ class YTGSessionService:
             "description": overview.get("description"),
             "warning_active": session_row.warning_active,
             "points_awarded": completed,
-            "points_lost": penalty_applied
+            "points_lost": penalty_applied,
+            "shutdown": False
         }
     
     def update_and_check_timer(self, session:Session, sm_row: 'GuardianSession'):

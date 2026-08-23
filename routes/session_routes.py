@@ -19,7 +19,7 @@ guardian_service = GuardianServices()
 user_service = UserService()
 
 # Instantiate the ScreenClassifier (can also be passed via dependency injection if needed)
-classifier = ScreenClassifier()
+classifier = ScreenClassifier("ollama")
 
 
 # ------------------------------------------------------------------------------
@@ -166,7 +166,7 @@ async def process_scan(
     try:
         scan_result = session_service.process_scan(
             session=session,
-            classifer=classifier,
+            classifier=classifier,
             session_row=ytg_session,
             image_bytes=image_bytes,
         )

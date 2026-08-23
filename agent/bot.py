@@ -6,9 +6,10 @@ if TYPE_CHECKING:
     from models.models import Guardian, GuardianSettings
 
 class ScreenClassifier:
-    def __init__(self) -> None:
+    def __init__(self, ai_to_use: str) -> None:
+        """Available AI agent models: Google flash, Ollama """
         
-        self.engine = Engine()
+        self.engine = Engine(ai_to_use=ai_to_use)
         self.prompts = Prompts()
 
     

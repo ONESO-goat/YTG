@@ -10,8 +10,10 @@ class Engine:
         if ai_to_use not in ['gemini', 'ollama']:
             raise ValueError(f"'{ai_to_use}' is not a valid AI")
         
-        self.ollama_model = 'qwen3:0.6b'
+        self.ollama_model = Config.ollama_qwen_2_dot_5
+        self.description_reader_ollama_model = Config.ollama_guard
         self.backend = ai_to_use
+
         if self.backend == 'gemini' and api_key:
             # Use Gemini
             
@@ -176,7 +178,7 @@ class Engine:
             try:
 
                 response = ollama.chat(
-                    model=self.ollama_model,
+                    model=self.description_reader_ollama_model,
                     messages=m,
                     format="json" if return_json else None,
                     options={'temperature': 0.2}

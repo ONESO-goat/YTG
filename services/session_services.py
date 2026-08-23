@@ -116,7 +116,7 @@ class YTGSessionService:
     def process_scan(
         self,
         session: Session,
-        classifer: ScreenClassifier,
+        classifier: ScreenClassifier,
         session_row: GuardianSession,
         image_bytes: bytes,
     ) -> dict:
@@ -133,8 +133,8 @@ class YTGSessionService:
         restrictions = stuff.get("restrictions")
             
             
-        classification = classifer.engine._classify_image(image_bytes=image_bytes, return_json=True)
-        overview = classifer.overview(
+        classification = classifier.engine._classify_image(image_bytes=image_bytes, return_json=True)
+        overview = classifier.overview(
             image_overview=classification.get("summary", ""),
             guardian_settings=settings or None,
             guardian_restrictions=restrictions or [])
@@ -158,7 +158,7 @@ class YTGSessionService:
                 # This is for parents or caregivers to know who is facing the issue,
                 # while individual people dont have to see their name spammed through out
                     
-                breakdown = classifer._breakdown_overview(
+                breakdown = classifier._breakdown_overview(
                     user=user, 
                     classification_result=overview, 
                     include_name=is_family_account)

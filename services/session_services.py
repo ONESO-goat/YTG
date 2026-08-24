@@ -244,6 +244,7 @@ class YTGSessionService:
         if not isinstance(classification, dict): 
             print(f"Classification for image is broken: {classification}")
             return
+        
         if restrictions:
             active_restrictions = [*restrictions.default_restrictions, *restrictions.restrictions]
         else:

@@ -18,7 +18,7 @@ class Engine:
         self.ollama_model = Config.ollama_qwen_2_dot_5
         self.description_reader_ollama_model = Config.ollama_guard
         self.backend = ai_to_use
-        self.ollama_client = ollama.Client(host=Config.current_laptop_ip)
+        self.ollama_client = ollama.Client(host='http://172.26.144.1:11434')
 
         if self.backend == 'gemini' and api_key:
             # Use Gemini
@@ -35,12 +35,12 @@ class Engine:
             self.backend = 'ollama'
             
             # Check if Ollama is available
-            try:
-                self.ollama_client.show(self.ollama_model)
-                print(f"✓ Using Ollama ({self.ollama_model})")
-            except:
-                print(f"⚠ Ollama model '{self.ollama_model}' not found")
-                exit()
+            # try:
+            #     self.ollama_client.show(self.ollama_model)
+            #     print(f"✓ Using Ollama ({self.ollama_model})")
+            # except:
+            #     print(f"⚠ Ollama model '{self.ollama_model}' not found")
+         
     
 
     def _is_the_same_image(self,

@@ -15,7 +15,7 @@ class Config:
     location = "boston"
     # Ollama config
     ollama_model_qwen = 'qwen3:0.6b'
-    ollama_qwen_2_dot_5 = 'qwen2.5vl:7b'
+    ollama_qwen_2_dot_5 = "qwen2.5vl:7b"
     ollama_guard = "llama-guard3"
     
     # Gemini config

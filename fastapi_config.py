@@ -4,9 +4,10 @@ from sqlmodel import Session, create_engine, SQLModel
 from fastapi.middleware.cors import CORSMiddleware
 
 app = fastapi.FastAPI(title="YTG API")
+origins = ["http://localhost:8080"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://your-truest-guardian.lovable.app", "*"],  # Replace "*" with your specific https://xxx.lovable.app domain in production
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

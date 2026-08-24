@@ -1,0 +1,6 @@
+bcrypt
+ollama
+python-dotenv
+# "fastapi[standard]"
+sqlmodel
+pydantic

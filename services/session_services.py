@@ -193,7 +193,7 @@ class YTGSessionService:
     def process_scan(
         self,
         session: Session,
-        classifer: ScreenClassifier,
+        classifier: ScreenClassifier,
         session_row: GuardianSession,
         image_bytes: bytes,
     ) -> dict:
@@ -206,7 +206,7 @@ class YTGSessionService:
         
         # Check wheater the images are the same. Do this first for quicker performence
         session_row.previous_image_bytes.append(image_bytes)
-        is_the_same_image = classifer.engine._is_the_same_image(new_image_bytes=image_bytes, previous_images=session_row.previous_image_bytes)
+        is_the_same_image = classifier.engine._is_the_same_image(new_image_bytes=image_bytes, previous_images=session_row.previous_image_bytes)
         
         if is_the_same_image:
             count = session_row.same_image_counter + 1
@@ -215,10 +215,12 @@ class YTGSessionService:
             if count >= 6:
                 session_row.shutdown_counter += 1
                 session_row.same_image_counter = 3
+                session_row.same_image_counter = 0
+
                 # prevent users rebooting constantly 
-                   
                 session_row.minute_timer = None
                 session.commit()
+
                 return {
             "flagged": False,
             "description": "",
@@ -227,8 +229,7 @@ class YTGSessionService:
             "points_lost": False,
             "shutdown": True # Set this to true
         }
-            else:
-                session_row.same_image_counter = 0
+                
                 
         guardian:Guardian|None = stuff.get("guardian")
         if not guardian:
@@ -239,13 +240,16 @@ class YTGSessionService:
             
         
               
-        classification = classifer.engine._classify_image(image_bytes=image_bytes, return_json=True)
+        classification = classifier.engine._classify_image(image_bytes=image_bytes, return_json=True)
+        if not isinstance(classification, dict): 
+            print(f"Classification for image is broken: {classification}")
+            return
         if restrictions:
             active_restrictions = [*restrictions.default_restrictions, *restrictions.restrictions]
         else:
             active_restrictions = default_restrictions_on_creation()
             
-        overview = classifer.overview(
+        overview = classifier.overview(
             image_overview=classification.get("summary", ""),
             guardian_settings=settings or None,
             guardian_restrictions=active_restrictions)
@@ -272,7 +276,7 @@ class YTGSessionService:
                 # This is for parents or caregivers to know who is facing the issue,
                 # while individual people dont have to see their name spammed through out
                     
-                breakdown = classifer._breakdown_overview(
+                breakdown = classifier._breakdown_overview(
                     user=user, 
                     classification_result=overview, 
                     include_name=is_family_account)

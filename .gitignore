@@ -12,6 +12,7 @@ dist
 dist-ssr
 .output
 .vinxi
+codeforce.cpp
 .tanstack/**
 .nitro
 *.local

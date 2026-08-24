@@ -11,12 +11,15 @@ import base64
 from google import genai
             
 class Engine:
-    def __init__(self, api_key:str|None=Config().gemini_api_key, ai_to_use:str="gemini") -> None:
+    def __init__(self, api_key:str|None=Config().gemini_api_key, ai_to_use:str="ollama") -> None:
         if ai_to_use not in ['gemini', 'ollama']:
             raise ValueError(f"'{ai_to_use}' is not a valid AI")
         
-        self.ollama_model = 'qwen3:0.6b'
+        self.ollama_model = Config.ollama_qwen_2_dot_5
+        self.description_reader_ollama_model = Config.ollama_guard
         self.backend = ai_to_use
+        self.ollama_client = ollama.Client(host=Config.current_laptop_ip)
+
         if self.backend == 'gemini' and api_key:
             # Use Gemini
             
@@ -33,12 +36,11 @@ class Engine:
             
             # Check if Ollama is available
             try:
-                ollama.show(self.ollama_model)
+                self.ollama_client.show(self.ollama_model)
                 print(f"✓ Using Ollama ({self.ollama_model})")
-                
             except:
                 print(f"⚠ Ollama model '{self.ollama_model}' not found")
-                print("  Run: ollama pull qwen3:0.6b")
+                exit()
     
 
     def _is_the_same_image(self,
@@ -103,7 +105,7 @@ class Engine:
                     }
                 ]
                         
-                response = ollama.chat(
+                response = self.ollama_client.chat(
                     model=self.ollama_model,
                     messages=messages,
                     format="json" if return_json else None,
@@ -124,7 +126,7 @@ class Engine:
     def _classify_image(self, 
                         image_bytes: bytes, 
                         system_prompt: str=Prompts().image_classification_prompt(), 
-                        return_json: bool = False) -> Any:
+                        return_json: bool = True) -> Any:
         """
         Classifies an image using the specified system prompt.
         """
@@ -170,7 +172,7 @@ class Engine:
                     }
                 ]
                 
-                response = ollama.chat(
+                response = self.ollama_client.chat(
                     model=self.ollama_model,
                     messages=m,
                     format="json" if return_json else None,
@@ -258,7 +260,7 @@ class Engine:
         else:  # Ollama
             try:
 
-                response = ollama.chat(
+                response = self.ollama_client.chat(
                     model=self.ollama_model,
                     messages=m,
                     format="json" if return_json else None,

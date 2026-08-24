@@ -34,9 +34,9 @@ function Landing() {
       </header>
 
       <section className="mx-auto max-w-4xl px-6 pt-16 pb-24 text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+        {/* <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
           <Sparkles className="h-3 w-3" /> Your Truest Guardian
-        </span>
+        </span> */}
         <h1 className="mt-6 font-display text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
           Build the habit of walking away from what hurts.
         </h1>

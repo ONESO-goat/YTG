@@ -6,9 +6,9 @@ if TYPE_CHECKING:
     from models.models import GuardianSettings
 
 class ScreenClassifier:
-    def __init__(self) -> None:
+    def __init__(self, ai_to_use:str) -> None:
         
-        self.engine = Engine(ai_to_use="ollama")
+        self.engine = Engine(ai_to_use=ai_to_use)
         self.prompts = Prompts()
 
     

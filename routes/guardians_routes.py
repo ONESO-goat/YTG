@@ -349,8 +349,8 @@ def fetch_delete_report(report_id:str, user_making_request:DeleteReportRequest, 
             status_code=404,
             detail=f"User of id '{user_making_request.user_id}' does not exist"
         )
-    sucess, mes = guardian_service.delete_report_by_id(session=session, user_making_request_id=user.id, report_id=report_id)
-    if not sucess:
+    success, mes = guardian_service.delete_report_by_id(session=session, user_making_request_id=user.id, report_id=report_id)
+    if not success:
         raise HTTPException(
             status_code=400,
             detail=mes

@@ -10,13 +10,15 @@ class Config:
 
     worker_file = "data/workers.json"
 
-    current_laptop_ip = "http://172.26.144.1:11434"
+    current_wsl_ip = "http://172.26.144.1:11434"
     
     location = "boston"
     # Ollama config
     ollama_model_qwen = 'qwen3:0.6b'
     ollama_qwen_2_dot_5 = "qwen2.5vl:7b"
     ollama_guard = "llama-guard3"
+
+    ollama_vision_model = "qwen2.5vl:7b"
     
     # Gemini config
     gemini_model = 'gemini-2.5-flash'

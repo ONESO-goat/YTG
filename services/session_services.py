@@ -16,6 +16,7 @@ from agent.bot import ScreenClassifier
 import random
 from datetime import datetime
 
+
 guardian_services = GuardianServices()
 gameify_service = Gameify()
 STILL_VIEWING_THRESHOLD_SECONDS = 30 
@@ -237,23 +238,37 @@ class YTGSessionService:
 
         settings = stuff.get("settings")
         restrictions = stuff.get("restrictions")
-            
-        
-              
-        classification = classifier.engine._classify_image(image_bytes=image_bytes, return_json=True)
-        if not isinstance(classification, dict): 
-            print(f"Classification for image is broken: {classification}")
-            return
-        
         if restrictions:
             active_restrictions = [*restrictions.default_restrictions, *restrictions.restrictions]
         else:
             active_restrictions = default_restrictions_on_creation()
             
-        overview = classifier.overview(
-            image_overview=classification.get("summary", ""),
-            guardian_settings=settings or None,
-            guardian_restrictions=active_restrictions)
+        
+              
+        classification = classifier.engine._classify_image(
+            image_bytes=image_bytes, 
+            return_json=True,
+            restrictions=active_restrictions
+        )
+        if not isinstance(classification, dict): 
+            print(f"Classification for image is broken: {classification}")
+            return
+        
+        if any(r in active_restrictions for r in list(set(classification['tags']))):
+           # This is to avoid high API useage, this will help save cost and avoid stress on the LLM.
+           overview = {
+                "flagged": True,
+                "category": [r for r in classification['tags'] if r in active_restrictions],
+                "confidence": 0.5, # manual, cant be fully sure
+                "description": classification.get("summary", ""),
+                "source_context": "N/A"
+                }
+        else:
+            overview = classifier.overview(
+                image_overview=classification.get("summary", ""),
+                guardian_settings=settings or None,
+                guardian_restrictions=active_restrictions
+            )
         
         overview["image_summary"] = classification
 

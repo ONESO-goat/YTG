@@ -119,24 +119,32 @@ You will now be given the restriction categories, strictness level, and screensh
 evaluation.
 """
 
-    def image_classification_prompt(self)->str:
-        return """
+    def image_classification_prompt(self, restrictions:list[str])->str:
+        return f"""
 You are a vision processing engine for Your Truest Guardian (YTG), a screen-monitoring system that helps individuals and families avoid content they have chosen to limit.
 
 You will be provided with a screenshot of a user's active screen.
 
 Your task:
-Analyze the screenshot thoroughly and output a structured JSON object. Focus on capturing key visible text, main visual elements, UI components, and the overall context of the screen.
+Analyze the screenshot thoroughly and output a structured JSON object. 
+Focus on capturing key visible text, main visual elements, UI components, 
+and the overall context of the screen.
+
+If the content falls into any category in {restrictions}, 
+make sure to specify in "tags" in the returning json. 
+
+If the image doesnt match with any category in the list, 
+DO NOT ADD/APPEND ANY CATEGORY IN THE LIST INTO THE returning json.
 
 Output strictly valid JSON matching this schema:
-{
+{{
     "summary": "A concise 1-2 sentence overview of what is happening on screen.",
     "comments": "Any notable comments, captions, or text visible in the screenshot. If not any, keep this empty.",
-    "visible_text": "A list of key visible text elements, paraphrased and summarized",
+    "tags": [A list of strings of categories image fits],
+    "visible_text": "Key visible text elements, paraphrased and summarized",
     "detailed_description": "A thorough description including visible key text, image subjects, logos, UI elements, and context.",
     "confidence": 0.95,
-    
-}
+}}
     
     """
 #     "error": false,

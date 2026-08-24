@@ -16,9 +16,9 @@ class Engine:
             raise ValueError(f"'{ai_to_use}' is not a valid AI")
         
         self.ollama_model = Config.ollama_qwen_2_dot_5
-        self.description_reader_ollama_model = Config.ollama_guard
+        self.description_reader_ollama_model = Config.ollama_vision_model
         self.backend = ai_to_use
-        self.ollama_client = ollama.Client(host='http://172.26.144.1:11434')
+        self.ollama_client = ollama.Client(host='http://127.0.0.1:11434')
 
         if self.backend == 'gemini' and api_key:
             # Use Gemini
@@ -35,11 +35,11 @@ class Engine:
             self.backend = 'ollama'
             
             # Check if Ollama is available
-            # try:
-            #     self.ollama_client.show(self.ollama_model)
-            #     print(f"✓ Using Ollama ({self.ollama_model})")
-            # except:
-            #     print(f"⚠ Ollama model '{self.ollama_model}' not found")
+            try:
+                self.ollama_client.show(self.ollama_model)
+                print(f"✓ Using Ollama ({self.ollama_model})")
+            except Exception as ex:
+                print(f"⚠ Ollama model '{self.ollama_model}' not found: {type(ex).__name__}: {ex}")
          
     
 
@@ -109,7 +109,8 @@ class Engine:
                     model=self.ollama_model,
                     messages=messages,
                     format="json" if return_json else None,
-                    options={'temperature': 0.2}
+                    options={'temperature': 0.2, "num_ctx": 8192},
+                    
                 )
                         
                 content = response['message']['content'] or ""
@@ -125,13 +126,15 @@ class Engine:
             
     def _classify_image(self, 
                         image_bytes: bytes, 
-                        system_prompt: str=Prompts().image_classification_prompt(), 
+                        restrictions: list[str], 
                         return_json: bool = True) -> Any:
         """
         Classifies an image using the specified system prompt.
         """
-        if not image_bytes or not system_prompt:
+        if not image_bytes:
             return None
+        
+        system_prompt = Prompts.image_classification_prompt(restrictions=restrictions)
         
         if self.backend == 'gemini':
             try:
@@ -176,7 +179,7 @@ class Engine:
                     model=self.ollama_model,
                     messages=m,
                     format="json" if return_json else None,
-                    options={'temperature': 0.2}
+                    options={'temperature': 0.2, "num_ctx": 8192}
                 )
                 
                 content = response['message']['content']
@@ -264,7 +267,7 @@ class Engine:
                     model=self.ollama_model,
                     messages=m,
                     format="json" if return_json else None,
-                    options={'temperature': 0.2}
+                    options={'temperature': 0.2, "num_ctx": 8192}
                 )
                 content = response['message']['content']
                 if return_json:

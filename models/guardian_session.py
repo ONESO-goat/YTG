@@ -99,3 +99,8 @@ class GuardianSession(SQLModel, table=True):
         elapsed = datetime.now() - self.minute_timer
         # Check if total elapsed seconds is 60 or more
         return elapsed.total_seconds() >= 60
+
+    def add_image(self, image:bytes):
+        if len(self.previous_image_bytes) >= 6:
+            del self.previous_image_bytes[0]
+        self.previous_image_bytes.append(image)

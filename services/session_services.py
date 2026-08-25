@@ -206,9 +206,13 @@ class YTGSessionService:
             )
         
         # Check wheater the images are the same. Do this first for quicker performence
-        session_row.previous_image_bytes.append(image_bytes)
-        is_the_same_image = classifier.engine._is_the_same_image(new_image_bytes=image_bytes, previous_images=session_row.previous_image_bytes)
-        
+        session_row.add_image(image_bytes)
+        session.commit()
+        session.refresh(session_row)
+        time.sleep(0.1)
+
+        is_the_same_image = classifier.is_the_same_screen(recent_screen_shots=session_row.previous_image_bytes)
+                
         if is_the_same_image:
             count = session_row.same_image_counter + 1
             session_row.same_image_counter += 1

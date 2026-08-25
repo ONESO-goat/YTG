@@ -11,7 +11,44 @@ class ScreenClassifier:
         self.engine = Engine(ai_to_use=ai_to_use)
         self.prompts = Prompts()
 
-    
+    def is_the_same_screen(self, recent_screen_shots: list[str|bytes]) -> bool:
+        """Avoid users staying on the same screen,
+          or finding some gimmick to trick the system like switching tabs constantly"""
+        l = len(recent_screen_shots)
+        confidence:float = 0.0
+        # convert bytes back to image here
+ 
+        if l < 2:
+            return False
+        
+        if recent_screen_shots[0] - recent_screen_shots[1] < 5:
+            return True
+        # check wheater the last image  and the new image are the same right away.
+        # Save speed. Issue could be if the user went back to the image 
+
+        # list size will be 6 (6 bytes) max. 
+        left, right = 0, l - 1
+        while left < right:
+            first_last_similarity_distance = recent_screen_shots[left] - recent_screen_shots[right] 
+            if left+1 < l and right-1 > left+1:
+
+                if recent_screen_shots[left+1] - recent_screen_shots[right] < 5:
+                    confidence += 1.0
+                if recent_screen_shots[left+1] - recent_screen_shots[left] < 5:
+                    confidence += 1.0
+                if recent_screen_shots[right-1] - recent_screen_shots[left] < 5:
+                    confidence += 1.0
+
+            if first_last_similarity_distance < 5:
+                confidence += 1.0
+            left+=1
+            right-=1
+
+        return confidence > 3.0
+
+            
+
+            
     def overview(self, 
                  image_overview:str, 
                  guardian_settings:'GuardianSettings|None', 

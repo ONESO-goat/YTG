@@ -5,3 +5,4 @@ python-dotenv
 sqlmodel
 pydantic
 google
+Pillow-imagehash

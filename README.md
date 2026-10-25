@@ -41,3 +41,15 @@ npm run dev
 The app runs at http://localhost:8080 and the API docs at http://localhost:8000/docs.
 
 Backend tests: `.venv/bin/python -m pytest tests`
+
+## Game rules
+
+Tunable constants live in `services/progress_service.py`, `services/session_services.py` and `services/gameify_service.py`.
+
+* **Points** are spent in the shop. **XP** is earned alongside points but never spent or lost, so levels never go down.
+* A clean minute earns 10 points and 10 XP, up to 600 a day. An unchanged screen earns nothing, and after ~5 minutes the session stops.
+* Moving away from flagged content for 15 seconds after a warning earns a 25 point bonus (5 bonuses a day).
+* Staying on flagged content for 30 seconds after a warning costs points (on by default, set per guardian). The penalty repeats every minute it continues, up to 3 times per warning, and doubles after 5 warnings in a day. Balances never go negative.
+* The daily goal is 15 clean minutes. It pays a 50 point bonus and extends your streak. Streak freezes from the shop (max 2) cover missed days.
+* 15 badges pay one-time bonuses. Leaderboards rank XP over the last 7 days: family members see their family, and individuals can opt in to the global board. Kids never appear on the global board.
+* Gift cards can be refunded within 24 hours for 5/6 of the cost. Streak freezes can't be refunded.

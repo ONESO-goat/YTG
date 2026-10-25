@@ -1,6 +1,6 @@
 """Response shapes sent to the frontend. These never include password hashes."""
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -59,11 +59,6 @@ class SessionPublic(BaseModel):
     guardian_id: str
     active: bool
     warning_active: bool
-    total_alerts: int
-    amount_of_warnings_ignored: int
-    amount_of_warnings_listened: int
-    points_gain_daily_limit: int
-    streak: int
     last_scan_at: Optional[datetime]
     created_at: datetime
 
@@ -93,6 +88,8 @@ class OwnedRewardPublic(BaseModel):
     id: str
     order_id: int
     reward: RewardPublic
+    purchased_at: Optional[datetime]
+    refundable_until: Optional[datetime]
 
 
 class AuthResponse(BaseModel):
@@ -109,10 +106,88 @@ class MeResponse(BaseModel):
     connection: Optional[ConnectionPublic]
 
 
+class GameEvent(BaseModel):
+    # level_up | achievement | goal | streak | freeze_used
+    type: str
+    title: str
+    description: str
+    icon: str
+    points: int = 0
+    xp: int = 0
+
+
+class StreakInfo(BaseModel):
+    current: int
+    best: int
+    freezes: int
+    max_freezes: int
+    done_today: bool
+    at_risk: bool
+
+
+class TodayStats(BaseModel):
+    day: date
+    clean_minutes: int
+    goal_minutes: int
+    goal_completed: bool
+    minute_points: int
+    minute_points_cap: int
+    avoidance_bonuses_left: int
+    points_earned: int
+    points_lost: int
+    xp_earned: int
+    warnings_total: int
+    warnings_heeded: int
+    warnings_ignored: int
+
+
+class ProgressSummary(BaseModel):
+    level: int
+    title: str
+    xp: int
+    xp_into_level: int
+    xp_for_next_level: int
+    streak: StreakInfo
+    today: TodayStats
+    show_on_leaderboard: bool
+    timezone: str
+
+
+class AchievementPublic(BaseModel):
+    code: str
+    name: str
+    description: str
+    icon: str
+    points: int
+    target: int
+    progress: int
+    unlocked_at: Optional[datetime]
+
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    name: str
+    username: str
+    level: int
+    weekly_xp: int
+    streak: int
+    is_me: bool
+
+
+class Leaderboard(BaseModel):
+    scope: str
+    entries: list[LeaderboardEntry]
+    # Set when the current user isn't among `entries`
+    me: Optional[LeaderboardEntry]
+    # False when the user can't appear on this board (opted out, or a dependent on the global board)
+    visible: bool
+
+
 class MemberOverview(BaseModel):
     connection: ConnectionPublic
     user: UserSummary
     session: Optional[SessionPublic]
+    progress: ProgressSummary
 
 
 class ScanResult(BaseModel):
@@ -122,15 +197,21 @@ class ScanResult(BaseModel):
     warning_active: bool
     points_awarded: int
     points_lost: int
+    xp_awarded: int
     currency: int
+    events: list[GameEvent]
     shutdown: bool
+    # The screen hasn't changed since the last scan
+    idle: bool = False
     analysis_failed: bool = False
+
+
+class PurchaseResult(BaseModel):
+    message: str
+    currency: int
+    events: list[GameEvent]
 
 
 class HealthResponse(BaseModel):
     status: str
     ai_backend: str
-
-
-def to_public(model: type[BaseModel], obj: Any) -> Any:
-    return model.model_validate(obj, from_attributes=True)

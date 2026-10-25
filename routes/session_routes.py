@@ -5,12 +5,13 @@ from sqlmodel import Session
 from agent.bot import ScreenClassifier
 from fastapi_config import get_session
 from helpers.config import Config
-from helpers.security import get_current_user, require_admin
+from helpers.security import get_current_user
 from models.models import Guardian, User
-from models.schemas import ScanResult, SessionPublic
+from models.schemas import GameEvent, ScanResult, SessionPublic
 from routes.auth import build_me
 from routes.deps import accessible_session, bad_request, can_be_monitored_by, forbidden
-from services.session_services import SessionInactiveError, YTGSessionService
+from services.progress_service import ProgressService
+from services.session_services import SessionInactiveError, YTGSessionService, utcnow
 
 router = APIRouter(prefix="/sessions", tags=["Monitoring Sessions"])
 dev_router = APIRouter(prefix="/dev", tags=["Development"])
@@ -24,6 +25,16 @@ MAX_SCAN_BYTES = 15 * 1024 * 1024
 class StartSessionRequest(BaseModel):
     # Defaults to the guardian the current user belongs to
     guardian_id: str | None = None
+
+
+class StartSessionResponse(BaseModel):
+    session: SessionPublic
+    events: list[GameEvent]
+
+
+class GrantRequest(BaseModel):
+    points: int = Field(default=0, ge=0, le=100_000)
+    xp: int = Field(default=0, ge=0, le=100_000)
 
 
 class SimulateRequest(BaseModel):
@@ -48,7 +59,7 @@ def get_my_session(user: User = Depends(get_current_user), session: Session = De
     return session_service.get_users_session(session=session, user=user)
 
 
-@router.post("/start", response_model=SessionPublic)
+@router.post("/start", response_model=StartSessionResponse)
 def start_session(
     payload: StartSessionRequest,
     user: User = Depends(get_current_user),
@@ -58,10 +69,9 @@ def start_session(
     if not guardian.on:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Monitoring is turned off for this guardian")
     ytg_session, _ = session_service.get_or_create(session=session, user=user, guardian=guardian)
-    ytg_session.start()
-    session.commit()
+    outcome = session_service.start_session(session, ytg_session, user)
     session.refresh(ytg_session)
-    return ytg_session
+    return StartSessionResponse(session=SessionPublic.model_validate(ytg_session), events=outcome.events)
 
 
 @router.post("/{session_id}/stop", response_model=SessionPublic)
@@ -105,16 +115,6 @@ async def process_scan(
         raise bad_request(str(ex))
 
 
-@router.post("/settle", dependencies=[Depends(require_admin)])
-def settle_all_sessions(session: Session = Depends(get_session)):
-    """End-of-day settlement: turn each session's day into points and reset its counters."""
-    try:
-        count = session_service.end_of_the_day_disprute_all(session)
-    except ValueError as ex:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(ex))
-    return {"message": f"{count} sessions settled"}
-
-
 # ------------------------------------------------------------------------------
 # Development helpers, only available while the AI is stubbed
 # ------------------------------------------------------------------------------
@@ -131,3 +131,11 @@ def simulate_flagged_content(payload: SimulateRequest, user: User = Depends(get_
     else:
         classifier.stub.simulate(user.id, payload.category, payload.scans)
     return {"remaining": classifier.stub.remaining(user.id), "category": payload.category}
+
+
+@dev_router.post("/grant", dependencies=[Depends(_require_stub)])
+def grant(payload: GrantRequest, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Give the current user points and XP, to try out levels and the shop without waiting."""
+    outcome = ProgressService().grant(session, user, utcnow(), payload.points, payload.xp)
+    session.commit()
+    return {"currency": user.currency, "events": outcome.events}

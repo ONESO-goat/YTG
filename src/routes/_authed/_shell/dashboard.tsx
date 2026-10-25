@@ -2,10 +2,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import {
   Ban,
-  Flame,
   Gem,
   HeartHandshake,
   PlayCircle,
+  Sparkles,
+  Trophy,
   ShieldCheck,
   ShieldOff,
   Trash2,
@@ -34,13 +35,29 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  AchievementTile,
+  DailyGoalCard,
+  GoalRing,
+  LeaderboardList,
+  LevelCard,
+  StreakCard,
+} from "@/components/game/widgets";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 import { useMe } from "@/lib/auth";
 import { isLive, timeAgo } from "@/lib/format";
-import { keys, toastError, useMembers, useMySession, useToggleGuardian } from "@/lib/queries";
+import {
+  keys,
+  toastError,
+  useAchievements,
+  useLeaderboard,
+  useMembers,
+  useMySession,
+  useProgress,
+  useToggleGuardian,
+} from "@/lib/queries";
 import { roleOf } from "@/lib/roles";
 import type { Guardian, MemberOverview, UserSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -48,8 +65,6 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authed/_shell/dashboard")({
   component: Dashboard,
 });
-
-const DAILY_LIMIT = 10_000;
 
 function Dashboard() {
   const me = useMe();
@@ -85,8 +100,8 @@ function PersonalDashboard() {
   const guardian = me.guardian!;
   const isMember = roleOf(me) === "member";
   const session = useMySession();
-  const s = session.data;
-  const dailyLeft = s?.points_gain_daily_limit ?? DAILY_LIMIT;
+  const progress = useProgress();
+  const p = progress.data;
 
   return (
     <>
@@ -99,7 +114,11 @@ function PersonalDashboard() {
       <div className="duo-card mb-6 flex flex-col items-start justify-between gap-4 bg-gradient-primary p-6 text-primary-foreground sm:flex-row sm:items-center">
         <div>
           <div className="font-display text-2xl font-extrabold">
-            {guardian.on ? "Ready for a session?" : "Monitoring is paused"}
+            {!guardian.on
+              ? "Monitoring is paused"
+              : p?.today.goal_completed
+                ? "Goal done. Nice work!"
+                : "Ready for a session?"}
           </div>
           <p className="mt-1 text-sm opacity-90">
             {guardian.on
@@ -111,56 +130,70 @@ function PersonalDashboard() {
         </div>
         {guardian.on && (
           <Link to="/monitor" className="duo-btn duo-btn-outline duo-btn-lg">
-            <PlayCircle className="h-5 w-5" /> {s?.active ? "Open session" : "Start session"}
+            <PlayCircle className="h-5 w-5" />{" "}
+            {session.data?.active ? "Open session" : "Start session"}
           </Link>
         )}
       </div>
 
-      {session.isError && <ErrorNotice error={session.error} onRetry={() => session.refetch()} />}
+      {progress.isPending && <Spinner label="Loading your progress…" />}
+      {progress.isError && (
+        <ErrorNotice error={progress.error} onRetry={() => progress.refetch()} />
+      )}
+      {p && (
+        <>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <LevelCard progress={p} />
+            <StreakCard streak={p.streak} />
+            <DailyGoalCard progress={p} />
+          </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard
-          icon={Gem}
-          label="Points"
-          value={formatPoints(me.user.currency)}
-          hint={
-            <Link to="/shop" className="underline">
-              Visit the shop
-            </Link>
-          }
-        />
-        <StatCard
-          icon={Flame}
-          label="Streak"
-          value={`${s?.streak ?? 0} ${s?.streak === 1 ? "day" : "days"}`}
-          tone="warm"
-          hint="Come back each day to grow it"
-        />
-        <StatCard
-          icon={HeartHandshake}
-          label="Warnings heeded"
-          value={s?.amount_of_warnings_listened ?? 0}
-          tone="success"
-          hint="Today"
-        />
-        <StatCard
-          icon={Ban}
-          label="Warnings ignored"
-          value={s?.amount_of_warnings_ignored ?? 0}
-          tone="destructive"
-          hint="Today"
-        />
-      </div>
+          <h2 className="mb-3 mt-8 font-display text-xl font-extrabold">Today</h2>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <StatCard
+              icon={Gem}
+              label="Points"
+              value={formatPoints(me.user.currency)}
+              hint={
+                <span>
+                  <span className="text-success">+{p.today.points_earned}</span>
+                  {p.today.points_lost > 0 && (
+                    <span className="text-destructive"> / -{p.today.points_lost}</span>
+                  )}{" "}
+                  today
+                </span>
+              }
+            />
+            <StatCard
+              icon={Sparkles}
+              label="XP today"
+              value={`+${formatPoints(p.today.xp_earned)}`}
+              hint={`${formatPoints(p.xp)} XP all time`}
+            />
+            <StatCard
+              icon={HeartHandshake}
+              label="Heeded"
+              value={p.today.warnings_heeded}
+              tone="success"
+              hint={`${p.today.avoidance_bonuses_left} bonuses left today`}
+            />
+            <StatCard
+              icon={Ban}
+              label="Ignored"
+              value={p.today.warnings_ignored}
+              tone="destructive"
+              hint={
+                p.today.warnings_ignored ? "Ignoring warnings costs points" : "Keep it at zero!"
+              }
+            />
+          </div>
 
-      <div className="duo-card mt-4 p-5">
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-bold">Points you can still earn today</span>
-          <span className="text-muted-foreground">
-            {formatPoints(Math.max(dailyLeft, 0))} / {formatPoints(DAILY_LIMIT)}
-          </span>
-        </div>
-        <Progress className="mt-3" value={(Math.max(dailyLeft, 0) / DAILY_LIMIT) * 100} />
-      </div>
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+            <BadgesPreview />
+            <LeaderboardPreview scope={isMember ? "family" : "global"} />
+          </div>
+        </>
+      )}
 
       {!isMember && (
         <section className="mt-8">
@@ -174,6 +207,75 @@ function PersonalDashboard() {
         </section>
       )}
     </>
+  );
+}
+
+function BadgesPreview() {
+  const achievements = useAchievements();
+  if (!achievements.data) return null;
+  const unlocked = achievements.data.filter((a) => a.unlocked_at).length;
+  // The locked badges the user is closest to
+  const next = achievements.data
+    .filter((a) => !a.unlocked_at)
+    .sort((a, b) => b.progress / b.target - a.progress / a.target)
+    .slice(0, 3);
+  return (
+    <section>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-display text-xl font-extrabold">
+          Badges{" "}
+          <span className="text-sm font-normal text-muted-foreground">
+            {unlocked}/{achievements.data.length}
+          </span>
+        </h2>
+        <Link to="/progress" className="text-sm font-bold text-primary">
+          See all
+        </Link>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {next.map((a) => (
+          <AchievementTile key={a.code} achievement={a} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LeaderboardPreview({ scope }: { scope: "family" | "global" }) {
+  const board = useLeaderboard(scope);
+  return (
+    <section>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-display text-xl font-extrabold">
+          {scope === "family" ? "Family leaderboard" : "Leaderboard"}
+        </h2>
+        <Link
+          to="/progress"
+          search={{ tab: "leaderboard" }}
+          className="text-sm font-bold text-primary"
+        >
+          See all
+        </Link>
+      </div>
+      {board.data && (board.data.visible || scope === "family") ? (
+        <LeaderboardList
+          entries={board.data.entries.slice(0, 5)}
+          me={board.data.visible ? board.data.me : null}
+        />
+      ) : (
+        <EmptyState icon={Trophy} title="Join the leaderboard">
+          Compare your weekly XP with others. You can opt in on the{" "}
+          <Link
+            to="/progress"
+            search={{ tab: "leaderboard" }}
+            className="font-bold text-primary underline"
+          >
+            Progress page
+          </Link>
+          .
+        </EmptyState>
+      )}
+    </section>
   );
 }
 
@@ -209,15 +311,18 @@ function FamilyDashboard() {
         </div>
       </section>
 
-      <section className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-xl font-extrabold">Recent reports</h2>
-          <Link to="/reports" className="text-sm font-bold text-primary">
-            See all
-          </Link>
-        </div>
-        <ReportList guardianId={guardian.id} limit={5} />
-      </section>
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        {!!members.data?.length && <LeaderboardPreview scope="family" />}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-xl font-extrabold">Recent reports</h2>
+            <Link to="/reports" className="text-sm font-bold text-primary">
+              See all
+            </Link>
+          </div>
+          <ReportList guardianId={guardian.id} limit={5} />
+        </section>
+      </div>
     </>
   );
 }
@@ -290,7 +395,7 @@ function AddMember({ guardianId }: { guardianId: string }) {
 
 function MemberCard({ guardianId, member }: { guardianId: string; member: MemberOverview }) {
   const qc = useQueryClient();
-  const { user, session } = member;
+  const { user, session, progress } = member;
   const live = session ? isLive(session.active, session.last_scan_at) : false;
   const warning = live && session?.warning_active;
   const remove = useMutation({
@@ -338,19 +443,30 @@ function MemberCard({ guardianId, member }: { guardianId: string; member: Member
         </span>
       </div>
 
-      <dl className="mt-4 grid grid-cols-4 gap-2 text-center">
-        {[
-          ["Points", formatPoints(user.currency)],
-          ["Streak", session?.streak ?? 0],
-          ["Heeded", session?.amount_of_warnings_listened ?? 0],
-          ["Ignored", session?.amount_of_warnings_ignored ?? 0],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-xl bg-muted p-2">
-            <dt className="text-[10px] font-bold uppercase text-muted-foreground">{label}</dt>
-            <dd className="font-display text-lg font-extrabold">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="mt-4 flex items-center gap-4">
+        <GoalRing
+          value={progress.today.clean_minutes}
+          goal={progress.today.goal_minutes}
+          size={84}
+        />
+        <dl className="grid flex-1 grid-cols-2 gap-2 text-center">
+          {[
+            ["Level", progress.level],
+            ["Streak", `${progress.streak.current} day${progress.streak.current === 1 ? "" : "s"}`],
+            ["Heeded today", progress.today.warnings_heeded],
+            ["Ignored today", progress.today.warnings_ignored],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl bg-muted p-2">
+              <dt className="text-[10px] font-bold uppercase text-muted-foreground">{label}</dt>
+              <dd className="font-display text-lg font-extrabold">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <div className="mt-3 text-xs text-muted-foreground">
+        {formatPoints(user.currency)} points · {progress.title} ·{" "}
+        {progress.today.goal_completed ? "goal done today" : "goal not done yet"}
+      </div>
 
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
         <span>Last scan {timeAgo(session?.last_scan_at)}</span>

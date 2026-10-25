@@ -18,6 +18,7 @@ import { Route as AuthedWaitingRouteImport } from './routes/_authed/waiting'
 import { Route as AuthedShellAccountRouteImport } from './routes/_authed/_shell/account'
 import { Route as AuthedShellDashboardRouteImport } from './routes/_authed/_shell/dashboard'
 import { Route as AuthedShellMonitorRouteImport } from './routes/_authed/_shell/monitor'
+import { Route as AuthedShellProgressRouteImport } from './routes/_authed/_shell/progress'
 import { Route as AuthedShellReportsRouteImport } from './routes/_authed/_shell/reports'
 import { Route as AuthedShellSettingsRouteImport } from './routes/_authed/_shell/settings'
 import { Route as AuthedShellShopRouteImport } from './routes/_authed/_shell/shop'
@@ -65,6 +66,11 @@ const AuthedShellMonitorRoute = AuthedShellMonitorRouteImport.update({
   path: '/monitor',
   getParentRoute: () => AuthedShellRoute,
 } as any)
+const AuthedShellProgressRoute = AuthedShellProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
 const AuthedShellReportsRoute = AuthedShellReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AuthedShellAccountRoute
   '/dashboard': typeof AuthedShellDashboardRoute
   '/monitor': typeof AuthedShellMonitorRoute
+  '/progress': typeof AuthedShellProgressRoute
   '/reports': typeof AuthedShellReportsRoute
   '/settings': typeof AuthedShellSettingsRoute
   '/shop': typeof AuthedShellShopRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/account': typeof AuthedShellAccountRoute
   '/dashboard': typeof AuthedShellDashboardRoute
   '/monitor': typeof AuthedShellMonitorRoute
+  '/progress': typeof AuthedShellProgressRoute
   '/reports': typeof AuthedShellReportsRoute
   '/settings': typeof AuthedShellSettingsRoute
   '/shop': typeof AuthedShellShopRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/_authed/_shell/account': typeof AuthedShellAccountRoute
   '/_authed/_shell/dashboard': typeof AuthedShellDashboardRoute
   '/_authed/_shell/monitor': typeof AuthedShellMonitorRoute
+  '/_authed/_shell/progress': typeof AuthedShellProgressRoute
   '/_authed/_shell/reports': typeof AuthedShellReportsRoute
   '/_authed/_shell/settings': typeof AuthedShellSettingsRoute
   '/_authed/_shell/shop': typeof AuthedShellShopRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/dashboard'
     | '/monitor'
+    | '/progress'
     | '/reports'
     | '/settings'
     | '/shop'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/dashboard'
     | '/monitor'
+    | '/progress'
     | '/reports'
     | '/settings'
     | '/shop'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/account'
     | '/_authed/_shell/dashboard'
     | '/_authed/_shell/monitor'
+    | '/_authed/_shell/progress'
     | '/_authed/_shell/reports'
     | '/_authed/_shell/settings'
     | '/_authed/_shell/shop'
@@ -232,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellMonitorRouteImport
       parentRoute: typeof AuthedShellRoute
     }
+    '/_authed/_shell/progress': {
+      id: '/_authed/_shell/progress'
+      path: '/progress'
+      fullPath: '/progress'
+      preLoaderRoute: typeof AuthedShellProgressRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/reports': {
       id: '/_authed/_shell/reports'
       path: '/reports'
@@ -260,6 +279,7 @@ interface AuthedShellRouteChildren {
   AuthedShellAccountRoute: typeof AuthedShellAccountRoute
   AuthedShellDashboardRoute: typeof AuthedShellDashboardRoute
   AuthedShellMonitorRoute: typeof AuthedShellMonitorRoute
+  AuthedShellProgressRoute: typeof AuthedShellProgressRoute
   AuthedShellReportsRoute: typeof AuthedShellReportsRoute
   AuthedShellSettingsRoute: typeof AuthedShellSettingsRoute
   AuthedShellShopRoute: typeof AuthedShellShopRoute
@@ -269,6 +289,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellAccountRoute: AuthedShellAccountRoute,
   AuthedShellDashboardRoute: AuthedShellDashboardRoute,
   AuthedShellMonitorRoute: AuthedShellMonitorRoute,
+  AuthedShellProgressRoute: AuthedShellProgressRoute,
   AuthedShellReportsRoute: AuthedShellReportsRoute,
   AuthedShellSettingsRoute: AuthedShellSettingsRoute,
   AuthedShellShopRoute: AuthedShellShopRoute,

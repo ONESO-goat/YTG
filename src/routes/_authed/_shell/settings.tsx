@@ -146,7 +146,8 @@ function BehaviourForm({ gid, initial }: { gid: string; initial: GuardianSetting
           <span>
             <span className="block text-sm font-bold">Lose points for ignoring a warning</span>
             <span className="text-xs text-muted-foreground">
-              Applied once per warning after 30 seconds on flagged content.
+              After 30 seconds on flagged content, then every minute it continues (up to 3 times per
+              warning). Points never go below zero, and levels are never lost.
             </span>
           </span>
           <Switch

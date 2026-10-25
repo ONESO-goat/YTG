@@ -16,12 +16,14 @@ from models.schemas import (
 )
 from routes.deps import accessible_guardian, bad_request, not_found, owned_guardian
 from services.guardian_services import GuardianServices
-from services.session_services import YTGSessionService
+from services.progress_service import ProgressService
+from services.session_services import YTGSessionService, utcnow
 from services.user_service import UserService
 
 router = APIRouter(prefix="/guardians", tags=["Guardians"])
 guardian_service = GuardianServices()
 session_service = YTGSessionService()
+progress_service = ProgressService()
 user_service = UserService()
 
 
@@ -148,8 +150,10 @@ def list_members(guardian_id: str, user: User = Depends(get_current_user), sessi
                 connection=ConnectionPublic.model_validate(connection),
                 user=UserSummary.model_validate(member),
                 session=SessionPublic.model_validate(member_session) if member_session else None,
+                progress=progress_service.summary(session, member, utcnow()),
             )
         )
+    session.commit()  # summaries may create today's stats rows
     return members
 
 

@@ -1,12 +1,15 @@
-from sqlmodel import SQLModel, Field, JSON, Column
+from datetime import datetime, timezone
 from typing import Optional
-from datetime import datetime
-from sqlalchemy.ext.mutable import MutableList
-from .helper import create_id
 
-DAILY_POINTS_LIMIT = 10000
+from sqlalchemy.ext.mutable import MutableList
+from sqlmodel import JSON, Column, Field, SQLModel
+
+from .helper import create_id, utcnow_naive
+
 
 class GuardianSession(SQLModel, table=True):
+    """A user's monitoring state under one guardian. Daily stats live in models/progress.py."""
+
     __tablename__ = "guardian_session"
 
     id: str = Field(default_factory=create_id, primary_key=True)
@@ -14,94 +17,47 @@ class GuardianSession(SQLModel, table=True):
     user_id: str = Field(foreign_key="user.id")
     guardian_id: str = Field(foreign_key="guardian.id")
     active: bool = Field(default=False)
-    
+
+    # Current warning episode
     warning_active: bool = Field(default=False)
     warning_started_at: Optional[datetime] = Field(default=None, nullable=True)
-    tracking_start_at: Optional[datetime] = Field(default=None)  # see #2
+    last_flag_category: Optional[str] = Field(default=None, nullable=True)
+    penalized_this_episode: bool = Field(default=False)
+    episode_penalties: int = Field(default=0)
+    last_penalty_at: Optional[datetime] = Field(default=None, nullable=True)
+    # When the user moved away from flagged content, and how long they must stay away
+    tracking_start_at: Optional[datetime] = Field(default=None)
     target_duration_seconds: int = Field(default=0)
-    
-    
+
+    # Start of the current clean minute
+    minute_timer: Optional[datetime] = Field(default=None, nullable=True)
+
+    # Perceptual hash of the last screenshot, see agent/frames.py
+    last_frame_hash: Optional[str] = Field(default=None, nullable=True)
+    same_image_counter: int = Field(default=0)
+    total_same_image_counter_for_whole_session: int = Field(default=0)
+    # How many times the session was stopped for an idle screen
+    shutdown_counter: int = Field(default=0)
+
+    # Latest flagged-content summaries
+    events: list = Field(default_factory=list, sa_column=Column(MutableList.as_mutable(JSON)))
+
+    last_scan_at: Optional[datetime] = Field(default=None)
+    last_active_at: Optional[datetime] = Field(default=None, nullable=True)
+    created_at: datetime = Field(default_factory=utcnow_naive)
+
+    # Legacy counters, replaced by DailyStats/UserProgress. Kept only because existing databases have
+    # them as NOT NULL columns without a default; drop them once there is a migration tool.
     total_alerts: int = Field(default=0)
     amount_of_warnings_ignored: int = Field(default=0)
     amount_of_warnings_listened: int = Field(default=0)
-    
-    penalized_this_episode: bool = Field(default=False)
-    
-    events: list = Field(default_factory=list, sa_column=Column(MutableList.as_mutable(JSON)))
-
     points_pending: int = Field(default=0)
-
-    last_scan_at: Optional[datetime] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    last_active_at: datetime = Field(default=None, nullable=True)
-    points_gain_daily_limit: int = Field(default=DAILY_POINTS_LIMIT)
-    minute_timer: Optional[datetime] = Field(default=None, nullable=True)
-    
-    # Perceptual hash of the last screenshot, see agent/frames.py
-    last_frame_hash: Optional[str] = Field(default=None, nullable=True)
-    
-    total_same_image_counter_for_whole_session: int = Field(default=0)
-    same_image_counter: int = Field(default=0)
-    shutdown_counter: int = Field(default=0)
-    # If the user faces 6 same image counter counts, the session is shutdown. 
-    # If the shutdown counter extends over 15, the user is marked in the system
-    
+    points_gain_daily_limit: int = Field(default=0)
     streak: int = Field(default=0)
-    
-    def reset(self):
-        self.warning_active = False
-        self.warning_started_at = None
-        self.tracking_start_at = None
-        self.target_duration_seconds = 0
-        
-        self.total_alerts = 0
-        self.amount_of_warnings_listened = 0
-        self.amount_of_warnings_ignored = 0
-        self.penalized_this_episode = False
-        self.minute_timer = None
-        
-        self.events = []
-        self.points_pending = 0
-        
-        self.last_scan_at = None
-        self.last_frame_hash = None
-        self.points_gain_daily_limit = DAILY_POINTS_LIMIT
-        self.same_image_counter = 0
-        self.total_same_image_counter_for_whole_session = 0
-        
-        self.last_active_at = datetime.now().today()
-        
+
     def start(self):
-        self.check_for_streak()
-        if not self.active:
-            self.last_active_at = datetime.now().today()
-        
         self.active = True
-        
+        self.last_active_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
     def end(self):
         self.active = False
-        
-    def check_for_streak(self):
-        if not self.last_active_at:
-            self.streak = 1
-            return
-        
-        today = datetime.today()
-        time_distance = (today - self.last_active_at).total_seconds() / 3600
-        
-        # Must wait at least 12 hours (prevents spamming), but less than 36 hours
-        if 12 <= time_distance <= 36:
-            self.streak += 1
-            self.last_active_at = today
-        # Missed the window
-        elif time_distance > 36:
-            self.streak = 1
-    
-    def minute_passed(self):
-        if self.minute_timer is None:
-            return False
-        
-        elapsed = datetime.now() - self.minute_timer
-        # Check if total elapsed seconds is 60 or more
-        return elapsed.total_seconds() >= 60

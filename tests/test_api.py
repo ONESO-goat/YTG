@@ -1,47 +1,7 @@
-from datetime import datetime, timedelta
-
-import pytest
-
+import services.gameify_service as gameify_service
+import services.progress_service as progress_service
 import services.session_services as session_services
-from conftest import ADMIN, random_png, signup
-
-
-class Clock:
-    def __init__(self):
-        self.now = datetime(2026, 1, 1, 12, 0, 0)
-
-    def __call__(self):
-        return self.now
-
-    def advance(self, seconds):
-        self.now += timedelta(seconds=seconds)
-
-
-@pytest.fixture
-def clock(monkeypatch):
-    c = Clock()
-    monkeypatch.setattr(session_services, "utcnow", c)
-    return c
-
-
-def scan(client, headers, session_id, seed):
-    r = client.post(
-        f"/sessions/{session_id}/scan",
-        headers=headers,
-        files={"file": ("frame.png", random_png(seed), "image/png")},
-    )
-    assert r.status_code == 200, r.text
-    return r.json()
-
-
-def personal_setup(client):
-    headers, user = signup(client, "individual")
-    r = client.post("/guardians", headers=headers, json={"name": "Mine"})
-    assert r.status_code == 201, r.text
-    guardian = r.json()
-    r = client.post("/sessions/start", headers=headers, json={})
-    assert r.status_code == 200, r.text
-    return headers, user, guardian, r.json()
+from conftest import ADMIN, personal_setup, random_png, scan, signup
 
 
 # ------------------------------------------------------------------------------
@@ -82,7 +42,7 @@ def test_weak_password_rejected(client):
 def test_admin_endpoints_need_key(client):
     headers, user = signup(client)
     assert client.put(f"/gameify/users/{user['id']}/points", json={"amount": 5}, headers=headers).status_code == 403
-    assert client.post("/sessions/settle", headers=headers).status_code == 403
+    assert client.post("/gameify/rewards", json={"name": "x", "reward_amount": 1, "reward_cost": 1}, headers=headers).status_code == 403
 
 
 # ------------------------------------------------------------------------------
@@ -96,8 +56,9 @@ def test_clean_minutes_earn_points(client, clock):
     assert first["flagged"] is False and first["points_awarded"] == 0
     clock.advance(61)
     second = scan(client, headers, sess["id"], seed=2)
-    assert second["points_awarded"] == 10
-    assert second["currency"] == 10
+    assert second["points_awarded"] == 10 and second["xp_awarded"] == 10
+    # +20 came from the "First steps" achievement when the session started
+    assert second["currency"] == 30
 
 
 def test_heeding_a_warning_earns_avoidance_points(client, clock):
@@ -117,7 +78,10 @@ def test_heeding_a_warning_earns_avoidance_points(client, clock):
     clock.advance(session_services.AVOIDANCE_SECONDS)
     r = scan(client, headers, sess["id"], seed=13)
     assert r["warning_active"] is False
-    assert r["points_awarded"] == session_services.AVOIDANCE_POINTS
+    # The avoidance bonus plus the "Walked away" achievement
+    walked_away = progress_service.ACHIEVEMENTS_BY_CODE["first_heed"].points
+    assert r["points_awarded"] == progress_service.AVOIDANCE_POINTS + walked_away
+    assert any(e["type"] == "achievement" and e["title"] == "Walked away" for e in r["events"])
 
     reports = client.get(f"/guardians/{guardian['id']}/reports", headers=headers).json()
     assert any("gore" in rep["content"] for rep in reports)
@@ -129,7 +93,7 @@ def test_ignoring_a_warning_costs_points(client, clock):
     client.patch(
         f"/guardians/{guardian['id']}/settings",
         headers=headers,
-        json={"points_loss_enabled": True, "base_points_lost": 10, "strictness": "harsh"},
+        json={"base_points_lost": 10, "strictness": "harsh"},
     )
     client.post("/dev/simulate", headers=headers, json={"category": "hate speech", "scans": 20})
 
@@ -139,10 +103,17 @@ def test_ignoring_a_warning_costs_points(client, clock):
     assert r["points_lost"] == 20  # 10 * harsh multiplier 2.0
     assert r["currency"] == 80
 
-    # Only penalized once per warning episode
+    # Not again straight away...
     clock.advance(10)
     r = scan(client, headers, sess["id"], seed=22)
     assert r["points_lost"] == 0
+    # ...but every minute it keeps being ignored, up to 3 times per warning
+    clock.advance(session_services.REPEAT_PENALTY_SECONDS)
+    assert scan(client, headers, sess["id"], seed=25)["points_lost"] == 20
+    clock.advance(session_services.REPEAT_PENALTY_SECONDS)
+    assert scan(client, headers, sess["id"], seed=26)["points_lost"] == 20
+    clock.advance(session_services.REPEAT_PENALTY_SECONDS)
+    assert scan(client, headers, sess["id"], seed=27)["points_lost"] == 0
 
     # Walking away after ignoring gives no avoidance reward
     client.post("/dev/simulate", headers=headers, json={"scans": 0})
@@ -152,9 +123,15 @@ def test_ignoring_a_warning_costs_points(client, clock):
     assert r["warning_active"] is False and r["points_awarded"] == 0
 
 
-def test_idle_screen_shuts_session_down(client, clock):
+def test_idle_screen_earns_nothing_then_shuts_down(client, clock):
     headers, user, guardian, sess = personal_setup(client)
-    results = [scan(client, headers, sess["id"], seed=99) for _ in range(session_services.SAME_FRAME_SHUTDOWN_COUNT + 1)]
+    scan(client, headers, sess["id"], seed=98)  # starts the clean-minute timer
+    results = []
+    for _ in range(session_services.IDLE_SHUTDOWN_FRAMES):
+        clock.advance(5)
+        results.append(scan(client, headers, sess["id"], seed=98))
+    assert all(r["idle"] for r in results)
+    assert sum(r["points_awarded"] for r in results) == 0
     assert results[-1]["shutdown"] is True
     assert all(not r["shutdown"] for r in results[:-1])
 
@@ -198,7 +175,7 @@ def test_family_flow_and_access_control(client, clock):
     assert client.get(f"/guardians/{guardian['id']}", headers=stranger_h).status_code == 403
     assert client.get(f"/guardians/{guardian['id']}/members", headers=stranger_h).status_code == 403
 
-    sess = client.post("/sessions/start", headers=kid_h, json={}).json()
+    sess = client.post("/sessions/start", headers=kid_h, json={}).json()["session"]
     # The owner can see the session but not send scans for the kid; strangers can't see it
     assert client.get(f"/sessions/{sess['id']}", headers=owner_h).status_code == 200
     assert client.get(f"/sessions/{sess['id']}", headers=stranger_h).status_code == 403
@@ -211,7 +188,7 @@ def test_family_flow_and_access_control(client, clock):
     assert any(kid["name"] in rep["content"] for rep in reports)
 
     members = client.get(f"/guardians/{guardian['id']}/members", headers=owner_h).json()
-    assert members[0]["user"]["id"] == kid["id"] and members[0]["session"]["total_alerts"] == 1
+    assert members[0]["user"]["id"] == kid["id"] and members[0]["progress"]["today"]["warnings_total"] == 1
 
     # Turning the guardian off stops the kid's session
     assert client.post(f"/guardians/{guardian['id']}/off", headers=owner_h).json()["on"] is False
@@ -231,18 +208,33 @@ def test_restrictions_crud(client):
 # ------------------------------------------------------------------------------
 # Shop
 # ------------------------------------------------------------------------------
-def test_shop_buy_and_refund(client):
+def test_shop_buy_and_refund(client, clock):
     headers, user = signup(client)
     rewards = client.get("/gameify/rewards", headers=headers).json()
-    assert rewards
-    cheapest = rewards[0]
-    assert client.post(f"/gameify/rewards/{cheapest['id']}/buy", headers=headers).status_code == 400
+    card = next(r for r in rewards if r["type"] == "gift_card")
+    assert client.post(f"/gameify/rewards/{card['id']}/buy", headers=headers).status_code == 400
 
-    client.put(f"/gameify/users/{user['id']}/points", json={"amount": cheapest["cost"]}, headers=ADMIN)
-    r = client.post(f"/gameify/rewards/{cheapest['id']}/buy", headers=headers)
-    assert r.status_code == 200 and r.json()["currency"] == 0
+    client.put(f"/gameify/users/{user['id']}/points", json={"amount": card["cost"]}, headers=ADMIN)
+    r = client.post(f"/gameify/rewards/{card['id']}/buy", headers=headers)
+    # Spent everything, then the "Treat yourself" achievement paid out
+    treat = progress_service.ACHIEVEMENTS_BY_CODE["first_purchase"].points
+    assert r.status_code == 200 and r.json()["currency"] == treat
+    assert any(e["title"] == "Treat yourself" for e in r.json()["events"])
     owned = client.get("/gameify/me/rewards", headers=headers).json()
-    assert owned[0]["reward"]["id"] == cheapest["id"]
+    assert owned[0]["reward"]["id"] == card["id"]
 
-    r = client.post(f"/gameify/rewards/{cheapest['id']}/refund", headers=headers)
-    assert r.status_code == 200 and r.json()["currency"] == int(cheapest["cost"] / 1.2)
+    r = client.post(f"/gameify/me/rewards/{owned[0]['id']}/refund", headers=headers)
+    assert r.status_code == 200
+    # The achievement bonus stays; the refund returns 5/6 of the cost
+    expected = int(card["cost"] * gameify_service.REFUND_RATE) + progress_service.ACHIEVEMENTS_BY_CODE["first_purchase"].points
+    assert r.json()["currency"] == expected
+
+
+def test_refund_window(client, clock):
+    headers, user = signup(client)
+    card = next(r for r in client.get("/gameify/rewards", headers=headers).json() if r["type"] == "gift_card")
+    client.put(f"/gameify/users/{user['id']}/points", json={"amount": card["cost"]}, headers=ADMIN)
+    client.post(f"/gameify/rewards/{card['id']}/buy", headers=headers)
+    owned = client.get("/gameify/me/rewards", headers=headers).json()[0]
+    clock.advance(25 * 3600)
+    assert client.post(f"/gameify/me/rewards/{owned['id']}/refund", headers=headers).status_code == 400

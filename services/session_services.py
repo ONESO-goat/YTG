@@ -15,22 +15,24 @@ from models.models import (
     User,
     default_restrictions_on_creation,
 )
-from .gameify_service import Gameify, MaxedCurrencyError
 from .guardian_services import GuardianServices
+from .progress_service import Outcome, ProgressService
 from .reports_service import create_report
 
 guardian_services = GuardianServices()
-gameify_service = Gameify()
+progress_service = ProgressService()
 
-# Scans arrive every ~5 seconds, so 6 identical frames is ~30 seconds of an untouched screen
-SAME_FRAME_SHUTDOWN_COUNT = 6
+# Scans arrive every ~5 seconds. An unchanged screen earns nothing, and after ~5 minutes the session stops.
+IDLE_SHUTDOWN_FRAMES = 60
 # Staying on flagged content this long after the warning counts as ignoring it
 IGNORE_THRESHOLD_SECONDS = 30
+# While the user keeps ignoring a warning, the penalty repeats this often, up to MAX_PENALTIES_PER_WARNING
+REPEAT_PENALTY_SECONDS = 60
+MAX_PENALTIES_PER_WARNING = 3
 # How long the user must stay away from flagged content for the warning to count as heeded
 AVOIDANCE_SECONDS = 15
-ALERT_COUNT_THRESHOLD = 5
-CLEAN_MINUTE_POINTS = 10
-AVOIDANCE_POINTS = 25
+# From this many warnings in a day, penalties double
+REPEAT_OFFENDER_WARNINGS = 5
 
 
 class SessionInactiveError(Exception):
@@ -82,9 +84,6 @@ class YTGSessionService:
         session.refresh(guardian)
         return new_sessions, f"Guardian is on, {len(new_sessions)} member sessions ready"
 
-    def get_all_sessions(self, session: Session):
-        return session.exec(select(GuardianSession)).all()
-
     def get_all_sessions_under_guardian(self, session: Session, guardian: Guardian):
         return session.exec(select(GuardianSession).where(GuardianSession.guardian_id == guardian.id)).all()
 
@@ -112,77 +111,45 @@ class YTGSessionService:
         session.refresh(row)
         return row, True
 
-    def _settle(self, session: Session, sess: GuardianSession) -> bool:
-        user = session.get(User, sess.user_id)
-        if not user:
-            return False
-        result = gameify_service.compute_daily_settlement(
-            avoided_count=sess.amount_of_warnings_listened,
-            ignored_count=sess.amount_of_warnings_ignored,
-            amount_of_warnings=sess.total_alerts,
-            streak_days=sess.streak,
-        )
-        try:
-            gameify_service.add_points(session=session, user=user, amount=result.get("total", 0))
-        except MaxedCurrencyError:
-            pass
-        sess.reset()
-        return True
-
-    def end_of_the_day_disprute_guardian(self, session: Session, guardian: Guardian) -> int:
-        try:
-            count = sum(self._settle(session, s) for s in self.get_all_sessions_under_guardian(session, guardian))
-            session.commit()
-            return count
-        except Exception as ex:
-            session.rollback()
-            raise ValueError(f"Error during session daily reset: {ex}")
-
-    def end_of_the_day_disprute_all(self, session: Session) -> int:
-        try:
-            count = sum(self._settle(session, s) for s in self.get_all_sessions(session))
-            session.commit()
-            return count
-        except Exception as ex:
-            session.rollback()
-            raise ValueError(f"Error during session daily reset: {ex}")
-
     def get_users_session(self, session: Session, user: User) -> GuardianSession | None:
         return session.exec(select(GuardianSession).where(GuardianSession.user_id == user.id)).first()
 
-    def _award(self, session: Session, sm_row: GuardianSession, user: User, amount: int) -> int:
-        """Give points within the daily limit. Returns how many were actually given."""
-        amount = min(amount, max(sm_row.points_gain_daily_limit, 0))
-        if amount <= 0:
-            return 0
-        try:
-            gameify_service.add_points(session=session, user=user, amount=amount)
-        except MaxedCurrencyError:
-            return 0
-        sm_row.points_gain_daily_limit -= amount
-        return amount
+    def start_session(self, session: Session, sm_row: GuardianSession, user: User) -> Outcome:
+        outcome = Outcome()
+        if not sm_row.active:
+            sm_row.start()
+            sm_row.last_frame_hash = None
+            sm_row.same_image_counter = 0
+            sm_row.minute_timer = None
+            outcome = progress_service.record_session_start(session, user, utcnow())
+        session.commit()
+        return outcome
 
     def _result(
         self,
         sm_row: GuardianSession,
         user: User,
+        outcome: Outcome | None = None,
         flagged: bool = False,
         description: str = "",
         category: str | None = None,
-        points_awarded: int = 0,
-        points_lost: int = 0,
         shutdown: bool = False,
+        idle: bool = False,
         analysis_failed: bool = False,
     ) -> dict:
+        outcome = outcome or Outcome()
         return {
             "flagged": flagged,
             "description": description,
             "category": category,
             "warning_active": sm_row.warning_active,
-            "points_awarded": points_awarded,
-            "points_lost": points_lost,
+            "points_awarded": outcome.points,
+            "points_lost": outcome.lost,
+            "xp_awarded": outcome.xp,
             "currency": user.currency,
+            "events": outcome.events,
             "shutdown": shutdown,
+            "idle": idle,
             "analysis_failed": analysis_failed,
         }
 
@@ -216,23 +183,30 @@ class YTGSessionService:
             raise ValueError("Uploaded file is not a readable image")
 
         now = utcnow()
+        previous_scan_at = session_row.last_scan_at
         session_row.last_scan_at = now
 
-        # An unchanged screen earns nothing and needs no new AI verdict. Too many in a row ends
-        # the session, so leaving a page open can't be used to farm points.
+        # An unchanged screen needs no new AI verdict and earns nothing: the clean-minute timer is
+        # paused for the idle time, so leaving a page open can't be used to farm points.
         if is_same_frame(fingerprint, session_row.last_frame_hash):
             session_row.same_image_counter += 1
             session_row.total_same_image_counter_for_whole_session += 1
-            if session_row.same_image_counter >= SAME_FRAME_SHUTDOWN_COUNT:
+            if session_row.minute_timer and previous_scan_at:
+                session_row.minute_timer += now - previous_scan_at
+            if session_row.same_image_counter >= IDLE_SHUTDOWN_FRAMES:
                 session_row.shutdown_counter += 1
                 session_row.same_image_counter = 0
                 session_row.minute_timer = None
                 session_row.last_frame_hash = None
                 session_row.end()
                 session.commit()
-                return self._result(session_row, user, shutdown=True)
+                return self._result(session_row, user, shutdown=True, idle=True)
+            # Still on flagged content counts as ignoring the warning, even when the screen isn't changing
+            outcome = Outcome()
+            if session_row.warning_active and session_row.tracking_start_at is None:
+                outcome = self._maybe_penalize(session, session_row, guardian, settings, user, None, now)
             session.commit()
-            return self._result(session_row, user, flagged=session_row.warning_active)
+            return self._result(session_row, user, outcome, flagged=session_row.warning_active, idle=True)
 
         session_row.same_image_counter = 0
         session_row.last_frame_hash = fingerprint
@@ -251,25 +225,23 @@ class YTGSessionService:
         if analysis.failed:
             # Neither reward nor punish when the AI couldn't decide; the next scan will retry
             session.commit()
-            return self._result(
-                session_row, user, flagged=False, description=analysis.description, analysis_failed=True
-            )
+            return self._result(session_row, user, description=analysis.description, analysis_failed=True)
 
         if analysis.flagged:
-            points_lost = self._handle_flagged(session, session_row, guardian, settings, user, analysis, now)
+            outcome = self._handle_flagged(session, session_row, guardian, settings, user, analysis, now)
             session.commit()
             return self._result(
                 session_row,
                 user,
+                outcome,
                 flagged=True,
                 description=analysis.description,
                 category=analysis.category,
-                points_lost=points_lost,
             )
 
-        points_awarded = self._handle_clean(session, session_row, user, now)
+        outcome = self._handle_clean(session, session_row, user, now)
         session.commit()
-        return self._result(session_row, user, description=analysis.description, points_awarded=points_awarded)
+        return self._result(session_row, user, outcome, description=analysis.description)
 
     def _handle_flagged(
         self,
@@ -280,66 +252,99 @@ class YTGSessionService:
         user: User,
         analysis: Analysis,
         now: datetime,
-    ) -> int:
+    ) -> Outcome:
         sm_row.minute_timer = None
         sm_row.tracking_start_at = None  # back on flagged content, so any avoidance countdown restarts
 
-        if not sm_row.warning_active:
-            # A new warning episode
-            sm_row.warning_active = True
-            sm_row.warning_started_at = now
-            sm_row.penalized_this_episode = False
-            sm_row.total_alerts += 1
+        if sm_row.warning_active:
+            return self._maybe_penalize(session, sm_row, guardian, settings, user, analysis.category, now)
 
-            breakdown = ScreenClassifier.breakdown(user, analysis, include_name=guardian.guardian_type == GuardianType.FAMILY)
-            self.add_event(session=session, content=breakdown, sm_row=sm_row)
-            if settings.reports_enabled:
-                create_report(session=session, guardian=guardian, content=breakdown)
-            return 0
+        # A new warning episode
+        sm_row.warning_active = True
+        sm_row.warning_started_at = now
+        sm_row.penalized_this_episode = False
+        sm_row.episode_penalties = 0
+        sm_row.last_penalty_at = None
+        sm_row.last_flag_category = analysis.category
+        progress_service.record_warning(session, user, now)
 
-        # Still on flagged content after being warned
+        breakdown = ScreenClassifier.breakdown(user, analysis, include_name=guardian.guardian_type == GuardianType.FAMILY)
+        self.add_event(session=session, content=breakdown, sm_row=sm_row)
+        if settings.reports_enabled:
+            create_report(session=session, guardian=guardian, content=breakdown)
+        return Outcome()
+
+    def _maybe_penalize(
+        self,
+        session: Session,
+        sm_row: GuardianSession,
+        guardian: Guardian,
+        settings: GuardianSettings,
+        user: User,
+        category: str | None,
+        now: datetime,
+    ) -> Outcome:
+        """The user is still on flagged content after a warning. Past the threshold that counts as ignoring it."""
         started = sm_row.warning_started_at or now
-        ignored = (now - started).total_seconds() >= IGNORE_THRESHOLD_SECONDS
-        if ignored and not sm_row.penalized_this_episode:
-            sm_row.amount_of_warnings_ignored += 1
-            sm_row.penalized_this_episode = True
-            if settings.reports_enabled:
-                who = f"{user.name} " if guardian.guardian_type == GuardianType.FAMILY else ""
-                create_report(
-                    session=session,
-                    guardian=guardian,
-                    content=f"{who}stayed on flagged content ({analysis.category}) after being warned.".strip().capitalize(),
-                )
-            return self.apply_point_penalty(session=session, sm_row=sm_row, guardian_settings=settings, user=user)
-        return 0
+        if (now - started).total_seconds() < IGNORE_THRESHOLD_SECONDS:
+            return Outcome()
+        if sm_row.episode_penalties >= MAX_PENALTIES_PER_WARNING:
+            return Outcome()
+        if sm_row.last_penalty_at and (now - sm_row.last_penalty_at).total_seconds() < REPEAT_PENALTY_SECONDS:
+            return Outcome()
 
-    def _handle_clean(self, session: Session, sm_row: GuardianSession, user: User, now: datetime) -> int:
+        first = not sm_row.penalized_this_episode
+        sm_row.penalized_this_episode = True
+        sm_row.episode_penalties += 1
+        sm_row.last_penalty_at = now
+
+        if first and settings.reports_enabled:
+            who = f"{user.name} " if guardian.guardian_type == GuardianType.FAMILY else "You "
+            what = category or sm_row.last_flag_category or "flagged content"
+            create_report(
+                session=session,
+                guardian=guardian,
+                content=f"{who}stayed on content flagged as {what} after being warned.",
+            )
+        penalty = self.penalty_for(settings, progress_service.warnings_today(session, user, now))
+        return progress_service.record_ignored(session, user, now, penalty, first_in_episode=first)
+
+    @staticmethod
+    def penalty_for(settings: GuardianSettings, warnings_today: int) -> int:
+        if not settings.points_loss_enabled:
+            return 0
+        multiplier = STRICTNESS_MULTIPLIERS.get(settings.strictness, 1.5)
+        penalty = round(settings.base_points_lost * multiplier)
+        if warnings_today >= REPEAT_OFFENDER_WARNINGS:
+            penalty *= 2
+        return penalty
+
+    def _handle_clean(self, session: Session, sm_row: GuardianSession, user: User, now: datetime) -> Outcome:
         if sm_row.warning_active:
             # The user moved away from flagged content. Once they stay away long enough, the warning was heeded.
             if sm_row.tracking_start_at is None:
                 sm_row.tracking_start_at = now
                 sm_row.target_duration_seconds = AVOIDANCE_SECONDS
-                return 0
+                return Outcome()
             if (now - sm_row.tracking_start_at).total_seconds() < sm_row.target_duration_seconds:
-                return 0
+                return Outcome()
 
             sm_row.warning_active = False
             sm_row.tracking_start_at = None
             sm_row.warning_started_at = None
             sm_row.minute_timer = now
             if sm_row.penalized_this_episode:
-                return 0  # walked away eventually, but only after ignoring the warning
-            sm_row.amount_of_warnings_listened += 1
-            return self._award(session, sm_row, user, AVOIDANCE_POINTS)
+                return Outcome()  # walked away eventually, but only after ignoring the warning
+            return progress_service.record_heeded(session, user, now)
 
         # Clean browsing earns points every full minute
         if sm_row.minute_timer is None:
             sm_row.minute_timer = now
-            return 0
+            return Outcome()
         if (now - sm_row.minute_timer).total_seconds() >= 60:
             sm_row.minute_timer = now
-            return self._award(session, sm_row, user, CLEAN_MINUTE_POINTS)
-        return 0
+            return progress_service.record_clean_minute(session, user, now)
+        return Outcome()
 
     def delete_session(self, session: Session, session_id: str):
         sess, mes = self.get_YTGSession(session=session, session_id=session_id)
@@ -352,8 +357,8 @@ class YTGSessionService:
     def add_event(self, session: Session, sm_row: GuardianSession, content: str, time_duration: int | None = None):
         if time_duration is None:
             time_duration = random.randint(140, 300)
-        sm_row.events.append({"content": content, "should_avoid": True, "time_to_wait": time_duration})
-        session.commit()
+        # Only the latest few are kept; reports hold the history
+        sm_row.events = [*sm_row.events[-19:], {"content": content, "should_avoid": True, "time_to_wait": time_duration}]
 
     def flush_wipe_events(self, session: Session, sm_row: GuardianSession):
         """Turn the session's pending events into reports for the guardian owner, then clear them."""
@@ -367,20 +372,3 @@ class YTGSessionService:
             session.add(GuardianReport(content=event["content"], guardian_id=guardian.id, send_to_id=guardian.owner_id))
         sm_row.events = []
         session.commit()
-
-    def apply_point_penalty(
-        self, session: Session, sm_row: GuardianSession, guardian_settings: GuardianSettings, user: User
-    ) -> int:
-        """Deduct points for an ignored warning. Returns points actually deducted (0 if none)."""
-        if not guardian_settings.points_loss_enabled:
-            return 0
-        multiplier = STRICTNESS_MULTIPLIERS.get(guardian_settings.strictness, 1.5)
-        penalty = round(guardian_settings.base_points_lost * multiplier)
-        # Repeat offenders in one day lose double
-        if sm_row.total_alerts >= ALERT_COUNT_THRESHOLD:
-            penalty *= 2
-        actual_deducted = min(penalty, user.currency)  # never go negative
-        if actual_deducted > 0:
-            gameify_service.remove_points(session=session, user=user, amount=actual_deducted)
-        return actual_deducted
-

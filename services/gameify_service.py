@@ -1,168 +1,106 @@
-from models.models import User, Reward, UserWonReward, RewardType, CreatedFirstFewRewards
-import time
-from sqlmodel import Session
-from sqlmodel import Session, select, func
-import random
+from datetime import datetime, timedelta, timezone
 
-class MaxedCurrencyError(Exception):
+from sqlalchemy import update
+from sqlmodel import Session, select
+
+from models.models import Reward, RewardType, User, UserWonReward
+from .progress_service import MAX_STREAK_FREEZES, Outcome, ProgressService
+
+progress_service = ProgressService()
+
+REFUND_WINDOW = timedelta(hours=24)
+# Refunds return this share of the cost, so buying and refunding can't be used to shuffle points around
+REFUND_RATE = 5 / 6
+
+# The starter catalog. A dedicated, engaged user earns roughly 700-800 points a day
+# (see services/progress_service.py), so a $5 card is about a month of good habits.
+STARTER_REWARDS = [
+    ("Streak freeze", RewardType.STREAK_FREEZE, 0, 500),
+    ("$5 gift card of your choice!", RewardType.GIFT_CARD, 5, 20_000),
+    ("$25 gift card of your choice!", RewardType.GIFT_CARD, 25, 95_000),
+    ("$100 gift card of your choice!", RewardType.GIFT_CARD, 100, 360_000),
+]
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class ShopError(Exception):
     pass
 
+
 class Gameify:
-    def update_points(self, session:Session, user:User, amount:int):
+    def set_points(self, session: Session, user: User, amount: int):
         user.currency = amount
         session.commit()
-        
-    def add_points(self, session:Session, user:User, amount:int):
-        if user.currency > 100000:
-            raise MaxedCurrencyError("User reached the maxed amount of currency")
-        user.currency += amount
-        session.commit()
-        
-    def remove_points(self, session:Session, user:User, amount:int):
-        user.currency = max(0, user.currency - amount)
-        session.commit()
-        
-    def get_reward(self, session:Session, reward_id:str):
+
+    def get_reward(self, session: Session, reward_id: str) -> Reward | None:
         return session.get(Reward, reward_id)
-    
-    def refund_reward(self, session:Session, user:'User', reward_id:str):
-        if not user or not reward_id:
-            return False, "User and reward id are required"
-        
-        reward = self.get_reward(session, reward_id=reward_id)
+
+    def _spend(self, session: Session, user: User, amount: int) -> None:
+        """Deduct points in one conditional UPDATE, so two purchases racing each other can't overspend."""
+        result = session.exec(  # type: ignore[call-overload]
+            update(User)
+            .where(User.id == user.id, User.currency >= amount)  # type: ignore[arg-type]
+            .values(currency=User.currency - amount)
+        )
+        if result.rowcount != 1:
+            raise ShopError("You don't have enough points for this")
+        session.refresh(user)
+
+    def buy_reward(self, session: Session, user: User, reward_id: str) -> Outcome:
+        reward = self.get_reward(session, reward_id)
         if not reward:
-            return False, f"{reward_id} does not exist"
+            raise ShopError("That reward doesn't exist")
 
-        
-        won_reward = session.exec(select(UserWonReward).where(
-            UserWonReward.user_id==user.id,
-            UserWonReward.reward_id==reward.id)).first()
-        if not won_reward:
-            return False, f"User doesnt have this item"
-        
-        self.add_points(session=session, user=user, amount=int(reward.cost/1.2))
-        session.delete(won_reward)
-        session.commit()
-        return True, "success"
-    
-    def buy_reward(self, session:Session, user:'User', reward_id:str):
-        if not user or not reward_id:
-            return False, "User and reward id are required"
-        
-        reward = self.get_reward(session, reward_id=reward_id)
-        if not reward:
-            return False, f"'{reward_id}' does not exist"
-        
-        if not self.can_afford(user, reward):
-            return False, f"Cannot affrod item"
-        
-        session.add(UserWonReward(user_id=user.id, reward_id=reward.id))
-        self.remove_points(session=session, user=user, amount=reward.cost)
-        return True, f"{user.username} bought {reward.name} for {reward.cost}"
-        
-    def compute_daily_settlement(
-        self,
-        avoided_count: int,
-        ignored_count: int,
-        amount_of_warnings: int,
-        daily_baseline: int = 1000,
-        per_avoidance_bonus: int = 25,
-        avoided_decay: float = 0.04,   # % multiplier lost per avoided warning
-        ignored_decay: float = 0.12,   # % multiplier lost per ignored warning
-        multiplier_floor: float = 0.05,
-        streak_bonus_per_day: int = 20,
-        streak_days: int = 0,
-    ) -> dict:
-        raw_points = avoided_count * per_avoidance_bonus
+        progress = progress_service.progress(session, user)
+        if reward.type == RewardType.STREAK_FREEZE and progress.streak_freezes >= MAX_STREAK_FREEZES:
+            raise ShopError(f"You can hold at most {MAX_STREAK_FREEZES} streak freezes")
 
-        decay = (avoided_count * avoided_decay) + (ignored_count * ignored_decay)
-        multiplier = max(multiplier_floor, 1.0 - decay)
-
-        baseline_component = round(daily_baseline * multiplier)
-        streak_component = min(streak_days, 10) * streak_bonus_per_day  # cap so it doesn't run away
-        
-        if amount_of_warnings in [0,1]:
-            total_alerts_reward = 100
-        elif amount_of_warnings >= 10:
-            total_alerts_reward = 0
+        self._spend(session, user, reward.cost)
+        if reward.type == RewardType.STREAK_FREEZE:
+            # Freezes go straight into the streak, there is nothing to hold on to
+            progress.streak_freezes += 1
         else:
-            c = ((( amount_of_warnings * 100 ) / 100) * 10) + 10
-            total_alerts_reward = max(0, 100 - c)
-        
-        total = raw_points + baseline_component + streak_component + total_alerts_reward
-        return {
-            "raw_points": raw_points,
-            "multiplier": multiplier,
-            "baseline_component": baseline_component,
-            "streak_component": streak_component,
-            "total": total,
-        }
-        
-    def can_afford(self, user:'User', reward: 'Reward'):
-        return user.currency >= reward.cost
-    
-    def _card_activation_code(self):
-        """We are using a fake appilication, so for now well make fake gift cards"""
-        return random.randint(1,10)
+            session.add(UserWonReward(user_id=user.id, reward_id=reward.id, purchased_at=_utcnow()))
+        outcome = progress_service.record_purchase(session, user, _utcnow())
+        session.commit()
+        session.refresh(user)
+        return outcome
+
+    def refund_reward(self, session: Session, user: User, owned_id: str) -> int:
+        """Refund an owned reward bought within the refund window. Returns the points given back."""
+        owned = session.get(UserWonReward, owned_id)
+        if not owned or owned.user_id != user.id or not owned.reward:
+            raise ShopError("You don't own that reward")
+        if owned.purchased_at is None or _utcnow() - owned.purchased_at > REFUND_WINDOW:
+            raise ShopError("Rewards can only be refunded within 24 hours of buying them")
+
+        amount = int(owned.reward.cost * REFUND_RATE)
+        user.currency += amount
+        session.delete(owned)
+        session.commit()
+        session.refresh(user)
+        return amount
 
 
+def sync_starter_rewards(session: Session) -> None:
+    """Make sure the starter catalog exists with current prices. Rewards are matched by name."""
+    existing = {r.name: r for r in session.exec(select(Reward)).all()}
+    for name, reward_type, amount, cost in STARTER_REWARDS:
+        reward = existing.get(name)
+        if reward is None:
+            session.add(Reward(name=name, type=reward_type, amount=amount, cost=cost))
+        else:
+            reward.type, reward.amount, reward.cost = reward_type, amount, cost
+    session.commit()
 
 
-def _add_rewards(session:Session):
-    """Adding the test rewards for MVP"""
-
-    if not session:
-        raise ValueError("Session is required")
-    already_done = session.get(CreatedFirstFewRewards, 1)
-    if already_done:
-        return
+def add_reward(session: Session, name: str, reward_amount: int, reward_cost: int, reward_type: RewardType = RewardType.GIFT_CARD):
     try:
-        starters = [
-            ("$5 gift card of your choice!", RewardType.GIFT_CARD, 5, 310000), 
-            ("$25 gift card of your choice!", RewardType.GIFT_CARD, 25, 1820000),
-            ("$100 gift card of your choice!", RewardType.GIFT_CARD, 100, 3650000),
-            ("Streak freeze", RewardType.STREAK_FREEZE, 0, 10000)
-           
-            ]
-        for reward in starters:
-            time.sleep(0.1)
-            reward_name  = reward[0]
-            reward_type = reward[1]
-            reward_amount = reward[2]
-            reward_cost = reward[3]
-
-            session.add(
-                Reward(
-                    name=reward_name,
-                    type=reward_type,
-                    amount=reward_amount,
-                    cost=reward_cost
-                )
-            )
-        n = CreatedFirstFewRewards()
-        session.add(n)
+        session.add(Reward(name=name, type=RewardType(reward_type), amount=reward_amount, cost=reward_cost))
         session.commit()
     except Exception as ex:
         session.rollback()
-        raise ValueError(f"An error occured when adding rewards to system: {ex}")
-
-def add_reward(session:Session, name:str, reward_amount:int, reward_cost:int, reward_type:str|RewardType=RewardType.GIFT_CARD):
-    if not session:
-        raise ValueError("Session is required")
-    
-    if reward_type not in RewardType:
-        raise ValueError(f"{reward_type} is not available")
-    try:
-
-        session.add(
-                Reward(
-                    name=name,
-                    type=RewardType(reward_type),
-                    amount=reward_amount,
-                    cost=reward_cost
-                )
-            )
-        session.commit()
-    except Exception as ex:
-        session.rollback()
-        raise ValueError(f"An error occured when adding rewards to system: {ex}")
+        raise ValueError(f"Could not add reward: {ex}")

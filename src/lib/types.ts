@@ -40,11 +40,6 @@ export interface MonitoringSession {
   guardian_id: string;
   active: boolean;
   warning_active: boolean;
-  total_alerts: number;
-  amount_of_warnings_ignored: number;
-  amount_of_warnings_listened: number;
-  points_gain_daily_limit: number;
-  streak: number;
   last_scan_at: string | null;
   created_at: string;
 }
@@ -66,6 +61,83 @@ export interface MemberOverview {
   connection: Connection;
   user: UserSummary;
   session: MonitoringSession | null;
+  progress: Progress;
+}
+
+export type GameEventType = "level_up" | "achievement" | "goal" | "streak" | "freeze_used";
+
+export interface GameEvent {
+  type: GameEventType;
+  title: string;
+  description: string;
+  icon: string;
+  points: number;
+  xp: number;
+}
+
+export interface Streak {
+  current: number;
+  best: number;
+  freezes: number;
+  max_freezes: number;
+  done_today: boolean;
+  at_risk: boolean;
+}
+
+export interface TodayStats {
+  day: string;
+  clean_minutes: number;
+  goal_minutes: number;
+  goal_completed: boolean;
+  minute_points: number;
+  minute_points_cap: number;
+  avoidance_bonuses_left: number;
+  points_earned: number;
+  points_lost: number;
+  xp_earned: number;
+  warnings_total: number;
+  warnings_heeded: number;
+  warnings_ignored: number;
+}
+
+export interface Progress {
+  level: number;
+  title: string;
+  xp: number;
+  xp_into_level: number;
+  xp_for_next_level: number;
+  streak: Streak;
+  today: TodayStats;
+  show_on_leaderboard: boolean;
+  timezone: string;
+}
+
+export interface Achievement {
+  code: string;
+  name: string;
+  description: string;
+  icon: string;
+  points: number;
+  target: number;
+  progress: number;
+  unlocked_at: string | null;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  username: string;
+  level: number;
+  weekly_xp: number;
+  streak: number;
+  is_me: boolean;
+}
+
+export interface Leaderboard {
+  scope: "family" | "global";
+  entries: LeaderboardEntry[];
+  me: LeaderboardEntry | null;
+  visible: boolean;
 }
 
 export interface GuardianSettings {
@@ -103,6 +175,14 @@ export interface OwnedReward {
   id: string;
   order_id: number;
   reward: Reward;
+  purchased_at: string | null;
+  refundable_until: string | null;
+}
+
+export interface PurchaseResult {
+  message: string;
+  currency: number;
+  events: GameEvent[];
 }
 
 export interface ScanResult {
@@ -112,8 +192,11 @@ export interface ScanResult {
   warning_active: boolean;
   points_awarded: number;
   points_lost: number;
+  xp_awarded: number;
   currency: number;
+  events: GameEvent[];
   shutdown: boolean;
+  idle: boolean;
   analysis_failed: boolean;
 }
 

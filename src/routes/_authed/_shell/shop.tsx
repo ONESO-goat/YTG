@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Gem, Gift, Package, Snowflake } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, ErrorNotice, PageHeader, Spinner, formatPoints } from "@/components/common";
+import { useCelebrate } from "@/components/game/Celebrations";
 import { RequireRole } from "@/components/RequireRole";
 import {
   AlertDialog,
@@ -17,9 +18,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
-import { meQueryKey, useMe } from "@/lib/auth";
-import { keys, toastError, useMyRewards, useRewards } from "@/lib/queries";
-import type { Reward } from "@/lib/types";
+import { useMe } from "@/lib/auth";
+import { parseServerDate } from "@/lib/format";
+import {
+  keys,
+  toastError,
+  useMyRewards,
+  useProgress,
+  useRefreshProgress,
+  useRewards,
+} from "@/lib/queries";
+import type { OwnedReward, PurchaseResult, Reward, Streak } from "@/lib/types";
 
 export const Route = createFileRoute("/_authed/_shell/shop")({
   component: () => (
@@ -29,13 +38,16 @@ export const Route = createFileRoute("/_authed/_shell/shop")({
   ),
 });
 
-// Matches the points the backend hands out for a clean minute
-const POINTS_PER_CLEAN_MINUTE = 10;
+// Roughly what a day of good habits earns: the clean-minute cap plus a goal and a few bonuses
+const POINTS_PER_GOOD_DAY = 700;
+// Matches REFUND_RATE in services/gameify_service.py
+const REFUND_RATE = 5 / 6;
 
 function Shop() {
   const me = useMe();
   const rewards = useRewards();
   const owned = useMyRewards();
+  const progress = useProgress();
 
   return (
     <>
@@ -53,7 +65,12 @@ function Shop() {
       {rewards.isError && <ErrorNotice error={rewards.error} onRetry={() => rewards.refetch()} />}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {rewards.data?.map((r) => (
-          <RewardCard key={r.id} reward={r} balance={me.user.currency} />
+          <RewardCard
+            key={r.id}
+            reward={r}
+            balance={me.user.currency}
+            streak={progress.data?.streak}
+          />
         ))}
       </div>
 
@@ -63,7 +80,7 @@ function Shop() {
         {owned.isError && <ErrorNotice error={owned.error} onRetry={() => owned.refetch()} />}
         {owned.data?.length === 0 && (
           <EmptyState icon={Package} title="Nothing here yet">
-            Rewards you buy show up here.
+            Gift cards you buy show up here. Streak freezes go straight to your streak.
           </EmptyState>
         )}
         <ul className="space-y-2">
@@ -73,10 +90,14 @@ function Shop() {
                 <RewardIcon reward={o.reward} />
                 <span>
                   <span className="block font-bold">{o.reward.name}</span>
-                  <span className="text-xs text-muted-foreground">Order #{o.order_id}</span>
+                  <span className="text-xs text-muted-foreground">
+                    Order #{o.order_id}
+                    {o.purchased_at &&
+                      ` · bought ${parseServerDate(o.purchased_at)?.toLocaleDateString()}`}
+                  </span>
                 </span>
               </span>
-              <RefundButton reward={o.reward} />
+              <RefundButton owned={o} />
             </li>
           ))}
         </ul>
@@ -94,44 +115,62 @@ function RewardIcon({ reward }: { reward: Reward }) {
   );
 }
 
-function useBalanceMutation(
-  fn: () => Promise<{ message: string; currency: number }>,
-  success: string,
-) {
+function useShopMutation(fn: () => Promise<PurchaseResult>, success: string) {
   const qc = useQueryClient();
+  const celebrate = useCelebrate();
+  const refreshProgress = useRefreshProgress();
   return useMutation({
     mutationFn: fn,
-    onSuccess: () => {
+    onSuccess: (result) => {
       toast.success(success);
-      qc.invalidateQueries({ queryKey: meQueryKey });
+      refreshProgress();
       qc.invalidateQueries({ queryKey: keys.myRewards });
+      celebrate(result.events);
     },
     onError: toastError,
   });
 }
 
-function RewardCard({ reward, balance }: { reward: Reward; balance: number }) {
-  const buy = useBalanceMutation(() => api.buyReward(reward.id), `You got ${reward.name}`);
+function RewardCard({
+  reward,
+  balance,
+  streak,
+}: {
+  reward: Reward;
+  balance: number;
+  streak?: Streak;
+}) {
+  const buy = useShopMutation(() => api.buyReward(reward.id), `You got ${reward.name}`);
+  const isFreeze = reward.type === "streak_freeze";
+  const freezesFull = isFreeze && !!streak && streak.freezes >= streak.max_freezes;
   const affordable = balance >= reward.cost;
   const missing = reward.cost - balance;
-  const minutesLeft = Math.ceil(missing / POINTS_PER_CLEAN_MINUTE);
+  const days = Math.ceil(missing / POINTS_PER_GOOD_DAY);
 
   return (
     <div className="duo-card flex flex-col p-5">
       <RewardIcon reward={reward} />
       <div className="mt-3 flex-1 font-bold">{reward.name}</div>
+      {isFreeze && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Protects your streak on a day you miss your goal.
+          {streak && ` You have ${streak.freezes} of ${streak.max_freezes}.`}
+        </p>
+      )}
       <div className="mt-2 flex items-center gap-1 font-display text-xl font-extrabold">
         <Gem className="h-4 w-4 text-primary" /> {formatPoints(reward.cost)}
       </div>
       <Progress className="mt-3" value={Math.min(100, (balance / reward.cost) * 100)} />
       <div className="mt-1 text-xs text-muted-foreground">
-        {affordable
-          ? "You can afford this!"
-          : `${formatPoints(missing)} to go (about ${minutesLeft >= 60 ? `${Math.ceil(minutesLeft / 60)} h` : `${minutesLeft} min`} of clean browsing)`}
+        {freezesFull
+          ? "You're holding the most freezes you can."
+          : affordable
+            ? "You can afford this!"
+            : `${formatPoints(missing)} to go (about ${days} good day${days === 1 ? "" : "s"})`}
       </div>
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <button className="duo-btn mt-4" disabled={!affordable || buy.isPending}>
+          <button className="duo-btn mt-4" disabled={!affordable || freezesFull || buy.isPending}>
             {buy.isPending ? "Buying…" : "Buy"}
           </button>
         </AlertDialogTrigger>
@@ -139,8 +178,10 @@ function RewardCard({ reward, balance }: { reward: Reward; balance: number }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Buy {reward.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {formatPoints(reward.cost)} points will leave your balance. Refunds return about 83%
-              of the cost.
+              {formatPoints(reward.cost)} points will leave your balance.{" "}
+              {isFreeze
+                ? "Streak freezes can't be refunded."
+                : "You can refund it within 24 hours for most of the cost back."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -153,8 +194,12 @@ function RewardCard({ reward, balance }: { reward: Reward; balance: number }) {
   );
 }
 
-function RefundButton({ reward }: { reward: Reward }) {
-  const refund = useBalanceMutation(() => api.refundReward(reward.id), "Refunded");
+function RefundButton({ owned }: { owned: OwnedReward }) {
+  const refund = useShopMutation(() => api.refundReward(owned.id), "Refunded");
+  const until = parseServerDate(owned.refundable_until);
+  if (!until || until.getTime() < Date.now()) {
+    return <span className="text-xs text-muted-foreground">Final sale</span>;
+  }
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -167,9 +212,10 @@ function RefundButton({ reward }: { reward: Reward }) {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Refund {reward.name}?</AlertDialogTitle>
+          <AlertDialogTitle>Refund {owned.reward.name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            You'll get {formatPoints(Math.floor(reward.cost / 1.2))} points back.
+            You'll get {formatPoints(Math.floor(owned.reward.cost * REFUND_RATE))} points back.
+            Refunds are possible until {until.toLocaleString()}.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

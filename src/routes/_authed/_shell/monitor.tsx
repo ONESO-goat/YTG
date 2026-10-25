@@ -14,6 +14,9 @@ import {
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader, StatCard, formatPoints } from "@/components/common";
+import { useCelebrate } from "@/components/game/Celebrations";
+import { GoalRing } from "@/components/game/widgets";
+import { Progress as Bar } from "@/components/ui/progress";
 import { RequireRole } from "@/components/RequireRole";
 import { Input } from "@/components/ui/input";
 import { SCAN_INTERVAL_MS, useMonitor, type MonitorState } from "@/hooks/useMonitor";
@@ -24,7 +27,14 @@ import {
   forcePictureInPictureWarning,
   sendWarningNotification,
 } from "@/lib/notify";
-import { keys, toastError, useHealth, useSettings } from "@/lib/queries";
+import {
+  keys,
+  toastError,
+  useHealth,
+  useProgress,
+  useRefreshProgress,
+  useSettings,
+} from "@/lib/queries";
 import type { ScanResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +52,10 @@ function Monitor() {
   const guardian = me.guardian!;
   const settings = useSettings(guardian.id);
   const health = useHealth();
-  const [pop, setPop] = useState<{ key: number; amount: number } | null>(null);
+  const progress = useProgress();
+  const celebrate = useCelebrate();
+  const refreshProgress = useRefreshProgress();
+  const [pop, setPop] = useState<{ key: number; amount: number; xp: number } | null>(null);
   const wasWarning = useRef(false);
 
   const warningText = settings.data?.warning_message || "Please move away from this content.";
@@ -56,7 +69,7 @@ function Monitor() {
       if (settings.data?.strictness === "harsh") forcePictureInPictureWarning(warningText);
     }
     if (r.points_awarded > 0) {
-      setPop({ key: Date.now(), amount: r.points_awarded });
+      setPop({ key: Date.now(), amount: r.points_awarded, xp: r.xp_awarded });
       if (wasWarning.current) {
         toast.success(`${applauseText} +${r.points_awarded} points`);
         sendWarningNotification({
@@ -70,12 +83,15 @@ function Monitor() {
       toast.error(`You stayed on flagged content, so you lost ${r.points_lost} points.`);
     if (r.points_awarded || r.points_lost) {
       qc.setQueryData(meQueryKey, { ...me, user: { ...me.user, currency: r.currency } });
+      refreshProgress();
     }
+    celebrate(r.events);
     wasWarning.current = r.warning_active;
   }
 
   const monitor = useMonitor({
     onResult,
+    onStarted: celebrate,
     onStopped: (reason) => {
       toast.message(reason);
       qc.invalidateQueries({ queryKey: meQueryKey });
@@ -114,6 +130,7 @@ function Monitor() {
               className="animate-points-pop pointer-events-none absolute right-6 top-6 font-display text-2xl font-extrabold text-success"
             >
               +{pop.amount}
+              {pop.xp > 0 && <span className="ml-1 text-sm text-primary">+{pop.xp} XP</span>}
             </span>
           )}
         </div>
@@ -138,8 +155,9 @@ function Monitor() {
             <h2 className="font-display text-2xl font-extrabold">Ready when you are</h2>
             <p className="max-w-md text-sm text-muted-foreground">
               YTG will ask to see your screen. Every {SCAN_INTERVAL_MS / 1000} seconds it takes a
-              quiet look. Each clean minute earns 10 points, and walking away from a warning earns
-              25.
+              quiet look. Each clean minute earns 10 points and 10 XP (up to an hour's worth a day),
+              and walking away from a warning earns a 25 point bonus. Staying on flagged content
+              after a warning can cost points.
             </p>
             {!guardian.on && (
               <p className="text-sm font-bold text-destructive">
@@ -158,6 +176,31 @@ function Monitor() {
         ) : (
           <div className="flex flex-col items-center gap-6 py-4 text-center">
             <StatusPanel state={monitor.state} warningText={warningText} />
+            {progress.data && (
+              <div className="flex w-full max-w-md items-center gap-4 rounded-2xl bg-muted p-4 text-left">
+                <GoalRing
+                  value={progress.data.today.clean_minutes}
+                  goal={progress.data.today.goal_minutes}
+                  size={72}
+                />
+                <div className="min-w-0 flex-1 text-sm">
+                  <div className="font-bold">
+                    Level {progress.data.level} · {progress.data.title}
+                  </div>
+                  <Bar
+                    className="mt-2 h-2"
+                    value={(progress.data.xp_into_level / progress.data.xp_for_next_level) * 100}
+                  />
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {progress.data.today.minute_points >= progress.data.today.minute_points_cap
+                      ? "You've hit today's minute-points cap. Great day! Bonuses still count."
+                      : progress.data.today.goal_completed
+                        ? "Daily goal done!"
+                        : `${progress.data.today.goal_minutes - progress.data.today.clean_minutes} clean minutes to today's goal`}
+                  </div>
+                </div>
+              </div>
+            )}
             <button className="duo-btn duo-btn-outline" onClick={handleStop}>
               <Square className="h-4 w-4" /> Stop session
             </button>
@@ -187,7 +230,9 @@ function Monitor() {
                         ? `Flagged: ${entry.category ?? entry.description}`
                         : entry.warning_active
                           ? "Moved away, keep going"
-                          : "All clear"}
+                          : entry.idle
+                            ? "Screen unchanged"
+                            : "All clear"}
                   </span>
                 </span>
                 <span className="flex shrink-0 items-center gap-3">
@@ -229,6 +274,18 @@ function StatusPanel({ state, warningText }: { state: MonitorState; warningText:
       </div>
     );
   }
+  if (state === "still") {
+    return (
+      <div className="w-full rounded-2xl bg-muted p-6">
+        <Sparkles className="mx-auto h-10 w-10 text-muted-foreground" />
+        <div className="mt-3 font-display text-2xl font-extrabold">Still there?</div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Your screen hasn't changed, so points are paused until it does. After about 5 minutes the
+          session stops by itself.
+        </p>
+      </div>
+    );
+  }
   if (state === "recovering") {
     return (
       <div className="w-full rounded-2xl bg-success/15 p-6">
@@ -257,6 +314,22 @@ function StatusPanel({ state, warningText }: { state: MonitorState; warningText:
 function DevPanel() {
   const [category, setCategory] = useState("hate speech");
   const [busy, setBusy] = useState(false);
+  const celebrate = useCelebrate();
+  const refreshProgress = useRefreshProgress();
+
+  async function grant(points: number, xp: number) {
+    setBusy(true);
+    try {
+      const r = await api.grant(points, xp);
+      refreshProgress();
+      celebrate(r.events);
+      toast.message(`Granted ${points ? `${points} points` : `${xp} XP`}`);
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function simulate(scans: number) {
     setBusy(true);
@@ -281,7 +354,8 @@ function DevPanel() {
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Scans always come back clean unless you simulate flagged content. Keep the screen changing
-        (scroll or switch tabs), because an unchanged screen pauses the session after ~30 seconds.
+        (scroll or switch tabs), because an unchanged screen earns nothing (and stops the session
+        after ~5 minutes).
       </p>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <Input
@@ -301,6 +375,14 @@ function DevPanel() {
           onClick={() => simulate(0)}
         >
           Clear
+        </button>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button className="duo-btn duo-btn-outline" disabled={busy} onClick={() => grant(0, 100)}>
+          +100 XP
+        </button>
+        <button className="duo-btn duo-btn-outline" disabled={busy} onClick={() => grant(1000, 0)}>
+          +1,000 points
         </button>
       </div>
     </section>

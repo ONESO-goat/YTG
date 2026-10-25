@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, api } from "@/lib/api";
-import type { ScanResult } from "@/lib/types";
+import type { GameEvent, ScanResult } from "@/lib/types";
 
 export const SCAN_INTERVAL_MS = 5000;
 const MAX_FRAME_WIDTH = 1280;
 const MAX_CONSECUTIVE_FAILURES = 3;
 
-export type MonitorState = "idle" | "starting" | "clear" | "warning" | "recovering";
+// "still": the screen hasn't changed, so nothing is earned until it does
+export type MonitorState = "idle" | "starting" | "clear" | "still" | "warning" | "recovering";
 
 export interface ScanLogEntry extends ScanResult {
   at: number;
@@ -14,12 +15,14 @@ export interface ScanLogEntry extends ScanResult {
 
 interface Options {
   onResult?: (result: ScanResult) => void;
+  /** Game events from starting the session, such as a first-session badge. */
+  onStarted?: (events: GameEvent[]) => void;
   /** Called when monitoring ends for any reason other than the user pressing stop. */
   onStopped?: (reason: string) => void;
 }
 
 /** Shares the screen, sends a frame to the backend every few seconds and tracks the outcome. */
-export function useMonitor({ onResult, onStopped }: Options = {}) {
+export function useMonitor({ onResult, onStarted, onStopped }: Options = {}) {
   const [state, setState] = useState<MonitorState>("idle");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [log, setLog] = useState<ScanLogEntry[]>([]);
@@ -32,8 +35,8 @@ export function useMonitor({ onResult, onStopped }: Options = {}) {
   const sessionRef = useRef<string | null>(null);
   const failuresRef = useRef(0);
   // Keep the latest callbacks without restarting the loop
-  const callbacks = useRef({ onResult, onStopped });
-  callbacks.current = { onResult, onStopped };
+  const callbacks = useRef({ onResult, onStarted, onStopped });
+  callbacks.current = { onResult, onStarted, onStopped };
 
   const teardown = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -80,7 +83,15 @@ export function useMonitor({ onResult, onStopped }: Options = {}) {
         setEarned((n) => n + result.points_awarded);
         setLost((n) => n + result.points_lost);
         if (!result.analysis_failed) {
-          setState(result.warning_active ? (result.flagged ? "warning" : "recovering") : "clear");
+          setState(
+            result.warning_active
+              ? result.flagged
+                ? "warning"
+                : "recovering"
+              : result.idle
+                ? "still"
+                : "clear",
+          );
         }
         callbacks.current.onResult?.(result);
         if (result.shutdown) {
@@ -124,7 +135,7 @@ export function useMonitor({ onResult, onStopped }: Options = {}) {
     }
 
     try {
-      const session = await api.startSession();
+      const { session, events } = await api.startSession();
       const video = document.createElement("video");
       video.muted = true;
       video.playsInline = true;
@@ -143,6 +154,7 @@ export function useMonitor({ onResult, onStopped }: Options = {}) {
       // The browser's own "stop sharing" button ends the session too
       stream.getVideoTracks()[0]?.addEventListener("ended", () => stop("Screen sharing ended."));
       timerRef.current = setTimeout(tick, 1000);
+      callbacks.current.onStarted?.(events);
     } catch (error) {
       stream.getTracks().forEach((t) => t.stop());
       setState("idle");

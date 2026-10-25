@@ -2,6 +2,7 @@ import io
 import os
 import random
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -56,3 +57,49 @@ def signup(client, user_type="individual", password="Password123"):
     assert r.status_code == 201, r.text
     body = r.json()
     return {"Authorization": f"Bearer {body['access_token']}"}, body["user"]
+
+
+import routes.guardians_routes as guardians_routes  # noqa: E402
+import routes.progress_routes as progress_routes  # noqa: E402
+import services.gameify_service as gameify_service  # noqa: E402
+import services.session_services as session_services  # noqa: E402
+
+
+class Clock:
+    def __init__(self):
+        self.now = datetime(2026, 1, 1, 12, 0, 0)
+
+    def __call__(self):
+        return self.now
+
+    def advance(self, seconds):
+        self.now += timedelta(seconds=seconds)
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    c = Clock()
+    for module in (session_services, progress_routes, guardians_routes):
+        monkeypatch.setattr(module, "utcnow", c)
+    monkeypatch.setattr(gameify_service, "_utcnow", c)
+    return c
+
+
+def scan(client, headers, session_id, seed):
+    r = client.post(
+        f"/sessions/{session_id}/scan",
+        headers=headers,
+        files={"file": ("frame.png", random_png(seed), "image/png")},
+    )
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def personal_setup(client):
+    headers, user = signup(client, "individual")
+    r = client.post("/guardians", headers=headers, json={"name": "Mine"})
+    assert r.status_code == 201, r.text
+    guardian = r.json()
+    r = client.post("/sessions/start", headers=headers, json={})
+    assert r.status_code == 200, r.text
+    return headers, user, guardian, r.json()["session"]

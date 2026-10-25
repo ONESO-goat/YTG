@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { api } from "./api";
 import { meQueryKey } from "./auth";
@@ -11,6 +12,9 @@ export const keys = {
   restrictions: (gid: string) => ["guardian", gid, "restrictions"] as const,
   reports: (gid: string) => ["guardian", gid, "reports"] as const,
   mySession: ["session", "me"] as const,
+  progress: ["progress", "me"] as const,
+  achievements: ["progress", "achievements"] as const,
+  leaderboard: (scope: string) => ["progress", "leaderboard", scope] as const,
   rewards: ["rewards"] as const,
   myRewards: ["rewards", "mine"] as const,
 };
@@ -45,6 +49,29 @@ export const useReports = (gid: string, enabled = true) =>
 
 export const useMySession = () => useQuery({ queryKey: keys.mySession, queryFn: api.mySession });
 
+export const useProgress = (enabled = true) =>
+  useQuery({ queryKey: keys.progress, queryFn: api.progress, enabled });
+
+export const useAchievements = () =>
+  useQuery({ queryKey: keys.achievements, queryFn: api.achievements });
+
+export const useLeaderboard = (scope: "family" | "global", enabled = true) =>
+  useQuery({
+    queryKey: keys.leaderboard(scope),
+    queryFn: () => api.leaderboard(scope),
+    enabled,
+    refetchInterval: 30_000,
+  });
+
+/** After points, XP or badges change, refetch everything that shows them. */
+export function useRefreshProgress() {
+  const qc = useQueryClient();
+  return useCallback(() => {
+    qc.invalidateQueries({ queryKey: meQueryKey });
+    qc.invalidateQueries({ queryKey: ["progress"] });
+  }, [qc]);
+}
+
 export const useRewards = () => useQuery({ queryKey: keys.rewards, queryFn: api.rewards });
 export const useMyRewards = () => useQuery({ queryKey: keys.myRewards, queryFn: api.myRewards });
 
@@ -72,10 +99,4 @@ export function useToggleGuardian(gid: string) {
     },
     onError: toastError,
   });
-}
-
-/** After anything that changes the balance, refetch the user so points stay in sync everywhere. */
-export function useRefreshBalance() {
-  const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: meQueryKey });
 }

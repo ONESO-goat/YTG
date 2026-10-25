@@ -3,13 +3,18 @@ import type {
   Connection,
   Guardian,
   GuardianSettings,
+  GameEvent,
   Health,
+  Leaderboard,
   Me,
   MemberOverview,
   MonitoringSession,
   OwnedReward,
+  Progress,
+  PurchaseResult,
   Report,
   Restrictions,
+  Achievement,
   Reward,
   ScanResult,
   User,
@@ -147,24 +152,37 @@ export const api = {
 
   // Monitoring sessions
   mySession: () => request<MonitoringSession | null>("/sessions/me"),
-  startSession: () => request<MonitoringSession>("/sessions/start", json("POST", {})),
+  startSession: () =>
+    request<{ session: MonitoringSession; events: GameEvent[] }>(
+      "/sessions/start",
+      json("POST", {}),
+    ),
   stopSession: (id: string) => request<MonitoringSession>(`/sessions/${id}/stop`, json("POST")),
   scan: (sessionId: string, frame: Blob) => {
     const form = new FormData();
     form.append("file", frame, "frame.png");
     return request<ScanResult>(`/sessions/${sessionId}/scan`, { method: "POST", body: form });
   },
+  grant: (points: number, xp: number) =>
+    request<{ currency: number; events: GameEvent[] }>("/dev/grant", json("POST", { points, xp })),
   simulate: (category: string, scans: number) =>
     request<{ remaining: number; category: string }>(
       "/dev/simulate",
       json("POST", { category, scans }),
     ),
 
+  // Progress
+  progress: () => request<Progress>("/progress/me"),
+  achievements: () => request<Achievement[]>("/progress/me/achievements"),
+  leaderboard: (scope: "family" | "global") =>
+    request<Leaderboard>(`/progress/leaderboard?scope=${scope}`),
+  updatePreferences: (body: { timezone?: string; show_on_leaderboard?: boolean }) =>
+    request<Progress>("/progress/me/preferences", json("PATCH", body)),
+
   // Shop
   rewards: () => request<Reward[]>("/gameify/rewards"),
   myRewards: () => request<OwnedReward[]>("/gameify/me/rewards"),
-  buyReward: (id: string) =>
-    request<{ message: string; currency: number }>(`/gameify/rewards/${id}/buy`, json("POST")),
-  refundReward: (id: string) =>
-    request<{ message: string; currency: number }>(`/gameify/rewards/${id}/refund`, json("POST")),
+  buyReward: (id: string) => request<PurchaseResult>(`/gameify/rewards/${id}/buy`, json("POST")),
+  refundReward: (ownedId: string) =>
+    request<PurchaseResult>(`/gameify/me/rewards/${ownedId}/refund`, json("POST")),
 };

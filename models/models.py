@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship, JSON, Column
-from .helper import create_id, create_number_id
+from .helper import create_id, create_number_id, utcnow_naive
 from sqlalchemy.ext.mutable import MutableList
 from enum import Enum
 from datetime import datetime, date
@@ -151,6 +151,7 @@ class UserWonReward(SQLModel, table=True):
 
     reward_id: str = Field(default=None, foreign_key="reward.id")
     reward: Optional["Reward"] = Relationship()
+    purchased_at: Optional[datetime] = Field(default=None, nullable=True)
 
 
 class GuardianReport(SQLModel, table=True):
@@ -166,7 +167,7 @@ class GuardianReport(SQLModel, table=True):
     )
     
     updated_at: date = Field(default_factory=date.today)
-    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow, nullable=True)
+    created_at: Optional[datetime] = Field(default_factory=utcnow_naive, nullable=True)
 
 
 class Guardian(SQLModel, table=True):
@@ -209,7 +210,8 @@ class GuardianSettings(SQLModel, table=True):
     strictness: str = Field(default=StrictnessLevel.NORMAL.value)
     language: str = Field(default=AvailableLanguages.ENGLISH.value)
     custom_warning_messages: dict = Field(default_factory=lambda: Messages().model_dump(), sa_type=JSON)
-    points_loss_enabled: bool = Field(default=False)
+    # Ignoring a warning costs points unless the guardian owner turns it off
+    points_loss_enabled: bool = Field(default=True)
     base_points_lost: int = Field(default=5)
     reports_enabled: bool = Field(default=True)
     

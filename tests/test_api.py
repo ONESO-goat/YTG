@@ -1,7 +1,8 @@
+from conftest import ADMIN, personal_setup, random_png, scan, signup
+
 import services.gameify_service as gameify_service
 import services.progress_service as progress_service
 import services.session_services as session_services
-from conftest import ADMIN, personal_setup, random_png, scan, signup
 
 
 # ------------------------------------------------------------------------------
@@ -34,15 +35,28 @@ def test_wrong_password_and_missing_token(client):
 def test_weak_password_rejected(client):
     r = client.post(
         "/auth/signup",
-        json={"username": "weakling", "email": "weak@example.com", "password": "short", "user_type": "individual"},
+        json={
+            "username": "weakling",
+            "email": "weak@example.com",
+            "password": "short",
+            "user_type": "individual",
+        },
     )
     assert r.status_code == 400
 
 
 def test_admin_endpoints_need_key(client):
     headers, user = signup(client)
-    assert client.put(f"/gameify/users/{user['id']}/points", json={"amount": 5}, headers=headers).status_code == 403
-    assert client.post("/gameify/rewards", json={"name": "x", "reward_amount": 1, "reward_cost": 1}, headers=headers).status_code == 403
+    assert (
+        client.put(f"/gameify/users/{user['id']}/points", json={"amount": 5}, headers=headers).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            "/gameify/rewards", json={"name": "x", "reward_amount": 1, "reward_cost": 1}, headers=headers
+        ).status_code
+        == 403
+    )
 
 
 # ------------------------------------------------------------------------------
@@ -144,7 +158,11 @@ def test_idle_screen_earns_nothing_then_shuts_down(client, clock):
 
 def test_scan_rejects_non_images(client):
     headers, user, guardian, sess = personal_setup(client)
-    r = client.post(f"/sessions/{sess['id']}/scan", headers=headers, files={"file": ("f.png", b"not an image", "image/png")})
+    r = client.post(
+        f"/sessions/{sess['id']}/scan",
+        headers=headers,
+        files={"file": ("f.png", b"not an image", "image/png")},
+    )
     assert r.status_code == 400
 
 
@@ -163,14 +181,21 @@ def test_family_flow_and_access_control(client, clock):
     assert client.post("/guardians", headers=kid_h, json={"name": "x"}).status_code == 400
     assert client.post("/sessions/start", headers=kid_h, json={}).status_code == 400
 
-    r = client.post(f"/guardians/{guardian['id']}/members", headers=owner_h, json={"user_number_id": kid["number_id"]})
+    r = client.post(
+        f"/guardians/{guardian['id']}/members", headers=owner_h, json={"user_number_id": kid["number_id"]}
+    )
     assert r.status_code == 201, r.text
     me = client.get("/auth/me", headers=kid_h).json()
     assert me["guardian"]["id"] == guardian["id"] and me["is_guardian_owner"] is False
 
     # Kid can read settings but not change them
     assert client.get(f"/guardians/{guardian['id']}/settings", headers=kid_h).status_code == 200
-    assert client.patch(f"/guardians/{guardian['id']}/settings", headers=kid_h, json={"strictness": "weak"}).status_code == 403
+    assert (
+        client.patch(
+            f"/guardians/{guardian['id']}/settings", headers=kid_h, json={"strictness": "weak"}
+        ).status_code
+        == 403
+    )
     # Strangers see nothing
     assert client.get(f"/guardians/{guardian['id']}", headers=stranger_h).status_code == 403
     assert client.get(f"/guardians/{guardian['id']}/members", headers=stranger_h).status_code == 403
@@ -179,7 +204,9 @@ def test_family_flow_and_access_control(client, clock):
     # The owner can see the session but not send scans for the kid; strangers can't see it
     assert client.get(f"/sessions/{sess['id']}", headers=owner_h).status_code == 200
     assert client.get(f"/sessions/{sess['id']}", headers=stranger_h).status_code == 403
-    r = client.post(f"/sessions/{sess['id']}/scan", headers=owner_h, files={"file": ("f.png", random_png(1), "image/png")})
+    r = client.post(
+        f"/sessions/{sess['id']}/scan", headers=owner_h, files={"file": ("f.png", random_png(1), "image/png")}
+    )
     assert r.status_code == 403
 
     client.post("/dev/simulate", headers=kid_h, json={"category": "violence", "scans": 1})
@@ -192,16 +219,22 @@ def test_family_flow_and_access_control(client, clock):
 
     # Turning the guardian off stops the kid's session
     assert client.post(f"/guardians/{guardian['id']}/off", headers=owner_h).json()["on"] is False
-    r = client.post(f"/sessions/{sess['id']}/scan", headers=kid_h, files={"file": ("f.png", random_png(41), "image/png")})
+    r = client.post(
+        f"/sessions/{sess['id']}/scan", headers=kid_h, files={"file": ("f.png", random_png(41), "image/png")}
+    )
     assert r.status_code == 409
     assert client.post("/sessions/start", headers=kid_h, json={}).status_code == 409
 
 
 def test_restrictions_crud(client):
     headers, user, guardian, _ = personal_setup(client)
-    r = client.post(f"/guardians/{guardian['id']}/restrictions", headers=headers, json={"restriction": "Gambling"})
+    r = client.post(
+        f"/guardians/{guardian['id']}/restrictions", headers=headers, json={"restriction": "Gambling"}
+    )
     assert r.status_code == 200 and "gambling" in r.json()["custom"]
-    r = client.delete(f"/guardians/{guardian['id']}/restrictions", headers=headers, params={"restriction": "gambling"})
+    r = client.delete(
+        f"/guardians/{guardian['id']}/restrictions", headers=headers, params={"restriction": "gambling"}
+    )
     assert r.status_code == 200 and r.json()["custom"] == []
 
 
@@ -226,7 +259,10 @@ def test_shop_buy_and_refund(client, clock):
     r = client.post(f"/gameify/me/rewards/{owned[0]['id']}/refund", headers=headers)
     assert r.status_code == 200
     # The achievement bonus stays; the refund returns 5/6 of the cost
-    expected = int(card["cost"] * gameify_service.REFUND_RATE) + progress_service.ACHIEVEMENTS_BY_CODE["first_purchase"].points
+    expected = (
+        int(card["cost"] * gameify_service.REFUND_RATE)
+        + progress_service.ACHIEVEMENTS_BY_CODE["first_purchase"].points
+    )
     assert r.json()["currency"] == expected
 
 

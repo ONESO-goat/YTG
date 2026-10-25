@@ -17,6 +17,8 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_db_path}"
 os.environ["AI_BACKEND"] = "stub"
 os.environ["ADMIN_API_KEY"] = "test-admin-key"
 os.environ["JWT_SECRET"] = "test-secret-that-is-long-enough-for-hs256"
+os.environ["RATE_LIMITS"] = "off"
+os.environ["LOG_LEVEL"] = "WARNING"
 
 from fastapi.testclient import TestClient  # noqa: E402
 from PIL import Image  # noqa: E402
@@ -59,10 +61,7 @@ def signup(client, user_type="individual", password="Password123"):
     return {"Authorization": f"Bearer {body['access_token']}"}, body["user"]
 
 
-import routes.guardians_routes as guardians_routes  # noqa: E402
-import routes.progress_routes as progress_routes  # noqa: E402
-import services.gameify_service as gameify_service  # noqa: E402
-import services.session_services as session_services  # noqa: E402
+from helpers import clock as clock_module  # noqa: E402
 
 
 class Clock:
@@ -76,16 +75,23 @@ class Clock:
         self.now += timedelta(seconds=seconds)
 
 
-@pytest.fixture
+_current_clock: Clock | None = None
+
+
+@pytest.fixture(autouse=True)
 def clock(monkeypatch):
-    c = Clock()
-    for module in (session_services, progress_routes, guardians_routes):
-        monkeypatch.setattr(module, "utcnow", c)
-    monkeypatch.setattr(gameify_service, "_utcnow", c)
-    return c
+    """Every test runs on a controllable clock."""
+    global _current_clock
+    _current_clock = Clock()
+    monkeypatch.setattr(clock_module, "now", _current_clock)
+    return _current_clock
+
+
+SCAN_INTERVAL = 5  # seconds between scans, like the real client
 
 
 def scan(client, headers, session_id, seed):
+    _current_clock.advance(SCAN_INTERVAL)
     r = client.post(
         f"/sessions/{session_id}/scan",
         headers=headers,

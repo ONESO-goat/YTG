@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
-from fastapi_config import get_session
+from db import get_session
 from helpers.security import get_current_user
 from models.models import User, UserType
-from models.schemas import UserPublic, UserSummary
-from routes.deps import bad_request, not_found
-from services.helpers import verify_password
+from models.schemas import AuthResponse, UserPublic, UserSummary
+from routes.auth import auth_response
+from services.errors import NotFound
 from services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -19,8 +19,12 @@ class ChangeNameRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
+    current_password: str = Field(..., max_length=200)
+    new_password: str = Field(..., max_length=200)
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(..., max_length=200)
 
 
 @router.get("/me", response_model=UserPublic)
@@ -34,31 +38,27 @@ def change_name(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    updated_user, msg = user_service.change_name(session=session, user=user, new_name=payload.new_name)
-    if not updated_user:
-        raise bad_request(msg)
-    return updated_user
+    return user_service.change_name(session, user, payload.new_name)
 
 
-@router.put("/me/password", response_model=UserPublic)
+@router.put("/me/password", response_model=AuthResponse)
 def change_password(
     payload: ChangePasswordRequest,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not verify_password(payload.current_password, user.password):
-        raise bad_request("Current password is incorrect")
-    updated_user, msg = user_service.change_password(session=session, user=user, new_password=payload.new_password)
-    if not updated_user:
-        raise bad_request(msg)
-    return updated_user
+    """Change the password. Other devices are signed out; this one gets a fresh token."""
+    user = user_service.change_password(session, user, payload.current_password, payload.new_password)
+    return auth_response(user)
 
 
-@router.delete("/me")
-def delete_me(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    success, msg = user_service.delete_user(session=session, user=user)
-    if not success:
-        raise bad_request(msg)
+@router.post("/me/delete")
+def delete_me(
+    payload: DeleteAccountRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    user_service.delete_user(session, user, payload.password)
     return {"message": "Account deleted"}
 
 
@@ -69,7 +69,7 @@ def get_user_by_number_id(
     session: Session = Depends(get_session),
 ):
     """Look up someone by the ID they shared, so a guardian owner can confirm before connecting them."""
-    user = user_service.get_user_by_number_id(session, number_id=user_number_id)
+    user = user_service.get_by_number_id(session, user_number_id)
     if not user or user.user_type != UserType.DEPENDENT:
-        raise not_found(f"No dependent account with ID {user_number_id}")
+        raise NotFound(f"No family member account with ID {user_number_id}")
     return user

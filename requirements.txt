@@ -10,3 +10,4 @@ pillow
 ollama
 google-genai
 pytest
+ruff

@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -6,6 +7,8 @@ from helpers.prompt import Prompts
 
 if TYPE_CHECKING:
     from models.models import GuardianSettings, User
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -72,13 +75,13 @@ class ScreenClassifier:
         if self.engine is None:
             return self._stub_analysis(user_id)
 
-        summary = self.engine._classify_image(image_bytes=image_bytes, return_json=True)
-        if not isinstance(summary, dict) or not summary.get("summary"):
-            print(f"[ScreenClassifier] image description unusable: {summary!r}")
+        summary = self.engine.describe_image(image_bytes, self.prompts.image_classification_prompt())
+        if not summary or not summary.get("summary"):
+            log.warning("Image description unusable: %r", summary)
             return self._failed()
 
         verdict = self.overview(
-            image_overview=summary.get("detailed_description") or summary["summary"],
+            image_overview=str(summary.get("detailed_description") or summary["summary"]),
             guardian_settings=guardian_settings,
             guardian_restrictions=restrictions,
         )
@@ -104,19 +107,22 @@ class ScreenClassifier:
         guardian_settings: "GuardianSettings | None",
         guardian_restrictions: list[str],
     ) -> dict[str, Any] | None:
-        """Ask the model whether the described screen matches a restriction. None if the answer is unusable."""
+        """Ask the model whether the described screen matches a restriction. None if unusable."""
         assert self.engine is not None
-        verdict = self.engine._generate(
-            text=image_overview,
-            system_prompt=self.prompts.agent_purpose(
-                restricted_categories=guardian_restrictions or self.default_restrictions,
+        allowed = guardian_restrictions or self.default_restrictions
+        verdict = self.engine.judge(
+            image_overview,
+            self.prompts.agent_purpose(
+                restricted_categories=allowed,
                 strictness=guardian_settings.strictness if guardian_settings else "harsh",
             ),
-            return_json=True,
         )
-        if not isinstance(verdict, dict) or "flagged" not in verdict or verdict.get("error"):
-            print(f"[ScreenClassifier] verdict unusable: {verdict!r}")
+        if not verdict or not isinstance(verdict.get("flagged"), bool):
+            log.warning("Verdict unusable: %r", verdict)
             return None
+        # Only accept categories the guardian actually configured
+        if verdict["flagged"] and verdict.get("category") not in allowed:
+            verdict["category"] = "restricted content"
         return verdict
 
     def _stub_analysis(self, user_id: str) -> Analysis:

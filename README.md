@@ -40,7 +40,15 @@ npm run dev
 
 The app runs at http://localhost:8080 and the API docs at http://localhost:8000/docs.
 
-Backend tests: `.venv/bin/python -m pytest tests`
+Checks:
+
+```bash
+.venv/bin/python -m pytest
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
+npm run lint && npx tsc --noEmit
+```
+
+The database schema is brought up to date on startup (`db.py`): new columns and indexes are added and retired ones dropped.
 
 ## Game rules
 

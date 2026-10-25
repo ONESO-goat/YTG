@@ -1,8 +1,9 @@
 import itertools
 
+from conftest import ADMIN, personal_setup, scan, signup
+
 import services.progress_service as ps
 import services.session_services as ss
-from conftest import ADMIN, personal_setup, scan, signup
 
 _seeds = itertools.count(1000)
 
@@ -93,7 +94,9 @@ def test_streak_freezes_cover_missed_days(client, clock):
 
     # Buy a freeze, then skip a day
     client.put(f"/gameify/users/{user['id']}/points", json={"amount": 5000}, headers=ADMIN)
-    freeze = next(r for r in client.get("/gameify/rewards", headers=headers).json() if r["type"] == "streak_freeze")
+    freeze = next(
+        r for r in client.get("/gameify/rewards", headers=headers).json() if r["type"] == "streak_freeze"
+    )
     assert client.post(f"/gameify/rewards/{freeze['id']}/buy", headers=headers).status_code == 200
     assert progress(client, headers)["streak"]["freezes"] == 1
 
@@ -116,7 +119,9 @@ def test_streak_freezes_cover_missed_days(client, clock):
 def test_streak_freeze_limit(client, clock):
     headers, user = signup(client)
     client.put(f"/gameify/users/{user['id']}/points", json={"amount": 100_000}, headers=ADMIN)
-    freeze = next(r for r in client.get("/gameify/rewards", headers=headers).json() if r["type"] == "streak_freeze")
+    freeze = next(
+        r for r in client.get("/gameify/rewards", headers=headers).json() if r["type"] == "streak_freeze"
+    )
     for _ in range(ps.MAX_STREAK_FREEZES):
         assert client.post(f"/gameify/rewards/{freeze['id']}/buy", headers=headers).status_code == 200
     r = client.post(f"/gameify/rewards/{freeze['id']}/buy", headers=headers)
@@ -125,9 +130,14 @@ def test_streak_freeze_limit(client, clock):
 
 def test_days_follow_the_users_timezone(client, clock):
     headers, user, guardian, sess = personal_setup(client)
-    assert client.patch("/progress/me/preferences", headers=headers, json={"timezone": "Not/AZone"}).status_code == 400
+    assert (
+        client.patch("/progress/me/preferences", headers=headers, json={"timezone": "Not/AZone"}).status_code
+        == 400
+    )
     # 12:00 UTC on Jan 1 is already Jan 2 in Kiritimati (UTC+14)
-    p = client.patch("/progress/me/preferences", headers=headers, json={"timezone": "Pacific/Kiritimati"}).json()
+    p = client.patch(
+        "/progress/me/preferences", headers=headers, json={"timezone": "Pacific/Kiritimati"}
+    ).json()
     assert p["today"]["day"] == "2026-01-02"
 
 
@@ -145,8 +155,10 @@ def test_leaderboards(client, clock):
     owner_h, _ = signup(client, "caregiver")
     guardian = client.post("/guardians", headers=owner_h, json={"name": "Fam"}).json()
     kids = [signup(client, "dependent") for _ in range(2)]
-    for kid_h, kid in kids:
-        client.post(f"/guardians/{guardian['id']}/members", headers=owner_h, json={"user_number_id": kid["number_id"]})
+    for _, kid in kids:
+        client.post(
+            f"/guardians/{guardian['id']}/members", headers=owner_h, json={"user_number_id": kid["number_id"]}
+        )
 
     # The second kid earns more this week
     kid_h, kid = kids[1]
@@ -190,7 +202,9 @@ def test_family_members_include_progress(client, clock):
     owner_h, _ = signup(client, "caregiver")
     guardian = client.post("/guardians", headers=owner_h, json={"name": "Fam"}).json()
     kid_h, kid = signup(client, "dependent")
-    client.post(f"/guardians/{guardian['id']}/members", headers=owner_h, json={"user_number_id": kid["number_id"]})
+    client.post(
+        f"/guardians/{guardian['id']}/members", headers=owner_h, json={"user_number_id": kid["number_id"]}
+    )
     sess = restart(client, kid_h)
     clean_minutes(client, kid_h, sess["id"], clock, 2)
     member = client.get(f"/guardians/{guardian['id']}/members", headers=owner_h).json()[0]

@@ -4,16 +4,16 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-from fastapi_config import get_session
+from db import get_session
+from helpers import clock
 from helpers.security import get_current_user
 from models.models import GuardianType, User, UserType
 from models.progress import UserProgress
 from models.schemas import AchievementPublic, Leaderboard, LeaderboardEntry, ProgressSummary
-from routes.auth import build_me
-from routes.deps import bad_request, not_found
+from routes.deps import guardian_for
+from services.errors import NotFound, ServiceError
 from services.guardian_services import GuardianServices
 from services.progress_service import ProgressService, level_for_xp, valid_timezone
-from services.session_services import utcnow
 
 router = APIRouter(prefix="/progress", tags=["Progress"])
 progress_service = ProgressService()
@@ -29,7 +29,7 @@ class PreferencesRequest(BaseModel):
 
 @router.get("/me", response_model=ProgressSummary)
 def my_progress(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    summary = progress_service.summary(session, user, utcnow())
+    summary = progress_service.summary(session, user, clock.now())
     session.commit()
     return summary
 
@@ -50,22 +50,21 @@ def update_preferences(
     progress = progress_service.progress(session, user)
     if payload.timezone is not None:
         if not valid_timezone(payload.timezone):
-            raise bad_request(f"Unknown timezone '{payload.timezone}'")
+            raise ServiceError(f"Unknown timezone '{payload.timezone}'")
         progress.timezone = payload.timezone
     if payload.show_on_leaderboard is not None:
         if payload.show_on_leaderboard and user.user_type == UserType.DEPENDENT:
-            raise bad_request("Family members can only appear on their family's leaderboard")
+            raise ServiceError("Family members can only appear on their family's leaderboard")
         progress.show_on_leaderboard = payload.show_on_leaderboard
     session.commit()
-    return progress_service.summary(session, user, utcnow())
+    return progress_service.summary(session, user, clock.now())
 
 
 def _family_member_ids(session: Session, user: User) -> list[str] | None:
-    me = build_me(session, user)
-    if not me.guardian or me.guardian.guardian_type != GuardianType.FAMILY:
+    guardian, _ = guardian_for(session, user)
+    if not guardian or guardian.guardian_type != GuardianType.FAMILY:
         return None
-    guardian = guardian_service.get_guardian_by_id(session, me.guardian.id)
-    return [c.user_id for c in guardian_service.get_all_connections(session, guardian=guardian)]
+    return [c.user_id for c in guardian_service.get_connections(session, guardian)]
 
 
 @router.get("/leaderboard", response_model=Leaderboard)
@@ -78,7 +77,7 @@ def leaderboard(
     if scope == "family":
         ids = _family_member_ids(session, user)
         if ids is None:
-            raise not_found("You aren't part of a family guardian")
+            raise NotFound("You aren't part of a family guardian")
         visible = user.id in ids
     else:
         rows = session.exec(
@@ -89,7 +88,7 @@ def leaderboard(
         ids = list(rows)
         visible = user.id in ids
 
-    now = utcnow()
+    now = clock.now()
     weekly = progress_service.weekly_xp(session, list({*ids, user.id}), now.date())
     users = {u.id: u for u in session.exec(select(User).where(User.id.in_({*ids, user.id}))).all()}  # type: ignore[attr-defined]
     progress_rows = {
@@ -111,7 +110,9 @@ def leaderboard(
             is_me=user_id == user.id,
         )
 
-    ranked = sorted((uid for uid in ids if uid in users), key=lambda uid: (-weekly.get(uid, 0), users[uid].name.lower()))
+    ranked = sorted(
+        (uid for uid in ids if uid in users), key=lambda uid: (-weekly.get(uid, 0), users[uid].name.lower())
+    )
     entries = [entry(uid, i + 1) for i, uid in enumerate(ranked[:LEADERBOARD_SIZE])]
     me_entry = None
     if not any(e.is_me for e in entries):

@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from agent.bot import ScreenClassifier
-from fastapi_config import get_session
+from db import get_session
+from helpers import clock
 from helpers.config import Config
 from helpers.security import get_current_user
 from models.models import Guardian, User
 from models.schemas import GameEvent, ScanResult, SessionPublic
-from routes.auth import build_me
-from routes.deps import accessible_session, bad_request, can_be_monitored_by, forbidden
+from routes.deps import accessible_session, can_be_monitored_by, guardian_for
+from services.errors import Forbidden, NotFound, ServiceError
 from services.progress_service import ProgressService
-from services.session_services import SessionInactiveError, YTGSessionService, utcnow
+from services.session_services import YTGSessionService
 
 router = APIRouter(prefix="/sessions", tags=["Monitoring Sessions"])
 dev_router = APIRouter(prefix="/dev", tags=["Development"])
@@ -44,13 +45,13 @@ class SimulateRequest(BaseModel):
 
 def _monitoring_guardian(session: Session, user: User, guardian_id: str | None) -> Guardian:
     if guardian_id is None:
-        me = build_me(session, user)
-        if not me.guardian:
-            raise bad_request("You aren't part of a guardian yet")
-        guardian_id = me.guardian.id
-    guardian = session.get(Guardian, guardian_id)
+        guardian, _ = guardian_for(session, user)
+        if not guardian:
+            raise ServiceError("You aren't part of a guardian yet")
+    else:
+        guardian = session.get(Guardian, guardian_id)
     if not guardian or not can_be_monitored_by(session, guardian, user):
-        raise forbidden("You can't start a session under this guardian")
+        raise Forbidden("You can't start a session under this guardian")
     return guardian
 
 
@@ -66,30 +67,28 @@ def start_session(
     session: Session = Depends(get_session),
 ):
     guardian = _monitoring_guardian(session, user, payload.guardian_id)
-    if not guardian.on:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Monitoring is turned off for this guardian")
-    ytg_session, _ = session_service.get_or_create(session=session, user=user, guardian=guardian)
-    outcome = session_service.start_session(session, ytg_session, user)
-    session.refresh(ytg_session)
+    ytg_session, outcome = session_service.start_session(session, user, guardian)
     return StartSessionResponse(session=SessionPublic.model_validate(ytg_session), events=outcome.events)
 
 
 @router.post("/{session_id}/stop", response_model=SessionPublic)
-def stop_session(session_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    ytg_session = accessible_session(session, session_id, user)
-    ytg_session.end()
-    session.commit()
-    session.refresh(ytg_session)
-    return ytg_session
+def stop_session(
+    session_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)
+):
+    return session_service.stop_session(session, accessible_session(session, session_id, user))
 
 
 @router.get("/{session_id}", response_model=SessionPublic)
-def get_session_by_id(session_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+def get_session_by_id(
+    session_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)
+):
     return accessible_session(session, session_id, user)
 
 
+# A plain `def` so FastAPI runs it in a worker thread: the AI call can take seconds and would
+# otherwise block every other request
 @router.post("/{session_id}/scan", response_model=ScanResult)
-async def process_scan(
+def process_scan(
     session_id: str,
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
@@ -97,22 +96,14 @@ async def process_scan(
 ):
     ytg_session = accessible_session(session, session_id, user)
     if ytg_session.user_id != user.id:
-        raise forbidden("Only the monitored user can send scans")
+        raise Forbidden("Only the monitored user can send scans")
 
-    image_bytes = await file.read(MAX_SCAN_BYTES + 1)
+    image_bytes = file.file.read(MAX_SCAN_BYTES + 1)
     if not image_bytes:
-        raise bad_request("Uploaded file is empty")
+        raise ServiceError("Uploaded file is empty")
     if len(image_bytes) > MAX_SCAN_BYTES:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Screenshot is too large")
-
-    try:
-        return session_service.process_scan(
-            session=session, classifier=classifier, session_row=ytg_session, image_bytes=image_bytes
-        )
-    except SessionInactiveError as ex:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(ex))
-    except ValueError as ex:
-        raise bad_request(str(ex))
+        raise ServiceError("Screenshot is too large", status_code=413)
+    return session_service.process_scan(session, classifier, ytg_session, image_bytes)
 
 
 # ------------------------------------------------------------------------------
@@ -120,7 +111,7 @@ async def process_scan(
 # ------------------------------------------------------------------------------
 def _require_stub():
     if classifier.backend != "stub":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not available with a real AI backend")
+        raise NotFound("Not available with a real AI backend")
 
 
 @dev_router.post("/simulate", dependencies=[Depends(_require_stub)])
@@ -134,8 +125,10 @@ def simulate_flagged_content(payload: SimulateRequest, user: User = Depends(get_
 
 
 @dev_router.post("/grant", dependencies=[Depends(_require_stub)])
-def grant(payload: GrantRequest, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+def grant(
+    payload: GrantRequest, user: User = Depends(get_current_user), session: Session = Depends(get_session)
+):
     """Give the current user points and XP, to try out levels and the shop without waiting."""
-    outcome = ProgressService().grant(session, user, utcnow(), payload.points, payload.xp)
+    outcome = ProgressService().grant(session, user, clock.now(), payload.points, payload.xp)
     session.commit()
     return {"currency": user.currency, "events": outcome.events}

@@ -1,36 +1,36 @@
-from sqlmodel import SQLModel, Field, Relationship, JSON, Column
-from .helper import create_id, create_number_id, utcnow_naive
-from sqlalchemy.ext.mutable import MutableList
+from datetime import date, datetime
 from enum import Enum
-from datetime import datetime, date
 from typing import Optional
+
 from pydantic import BaseModel
+from sqlalchemy.ext.mutable import MutableList
+from sqlmodel import JSON, Column, Field, Relationship, SQLModel
+
+from .helper import create_id, create_number_id, utcnow_naive
 
 
-def default_restrictions_on_creation()->list[str]:
+def default_restrictions_on_creation() -> list[str]:
     return [
-        # Original Safety Categories
-        'hate speech', 
-        'violence', 
-        'gore', 
-        'extreme ideologies',
-        
-        # Harassment & Toxicity
-        'harassment',
-        'bullying',
-        'doxxing',
-        
-        # Security & Guardrail Bypasses
-        'prompt injection',
-        'jailbreak',
-        'system prompt extraction',
-        
-        # Harmful & Illegal Content
-        'self-harm',
-        'illegal acts',
-        'weapons manufacturing',
-
+        # Original safety categories
+        "hate speech",
+        "violence",
+        "gore",
+        "extreme ideologies",
+        # Harassment and toxicity
+        "harassment",
+        "bullying",
+        "doxxing",
+        # Security and guardrail bypasses
+        "prompt injection",
+        "jailbreak",
+        "system prompt extraction",
+        # Harmful and illegal content
+        "self-harm",
+        "illegal acts",
+        "weapons manufacturing",
     ]
+
+
 class Messages(BaseModel):
     warning: str = "Hey, I see that this content seems harmful. Please avoid it!"
     applause: str = "Great work friend! We are proud of you"
@@ -55,14 +55,16 @@ class StrictnessLevel(Enum):
     NORMAL = "normal"
     HARSH = "harsh"
 
+
 STRICTNESS_MULTIPLIERS = {
     StrictnessLevel.WEAK.value: 1.2,
-    StrictnessLevel.NORMAL.value: 1.5,  
+    StrictnessLevel.NORMAL.value: 1.5,
     StrictnessLevel.HARSH.value: 2.0,
 }
 
+
 class UserType(Enum):
-    CAREGIVER = "caregiver" 
+    CAREGIVER = "caregiver"
     INDIVIDUAL = "individual"
     DEPENDENT = "dependent"
 
@@ -92,9 +94,6 @@ class Reward(SQLModel, table=True):
     amount: int
     cost: int
 
-class CreatedFirstFewRewards(SQLModel, table=True):
-    code: int = Field(default=1, primary_key=True)
-    yes: bool = Field(default=True)
 
 class UserSettings(SQLModel, table=True):
     __tablename__ = "user_settings"
@@ -102,72 +101,56 @@ class UserSettings(SQLModel, table=True):
     id: str = Field(default_factory=create_id, primary_key=True)
     language: str = Field(default=AvailableLanguages.ENGLISH.value)
 
-    user_id: Optional[str] = Field(default=None, foreign_key="user.id", unique=True)
+    user_id: str | None = Field(default=None, foreign_key="user.id", unique=True)
     user: Optional["User"] = Relationship(back_populates="settings")
-
-
-class UserHistory(SQLModel, table=True):
-    __tablename__ = "user_history"
-
-    id: str = Field(default_factory=create_id, primary_key=True)
-
-    user_id: Optional[str] = Field(default=None, foreign_key="user.id", unique=True)
-    user: Optional["User"] = Relationship(back_populates="history")
 
 
 class User(SQLModel, table=True):
     id: str = Field(default_factory=create_id, primary_key=True)
     number_id: int = Field(default_factory=create_number_id, unique=True)
 
-    username: str
+    username: str = Field(index=True)
     name: str
-    email: str
+    email: str = Field(index=True)
     password: str
     user_type: UserType = Field(default=UserType.INDIVIDUAL)
+    # Bumped on password change; tokens issued before that stop working
+    token_version: int = Field(default=0)
 
     currency: int = Field(default=0)
 
     settings: Optional["UserSettings"] = Relationship(back_populates="user")
-
-    history: Optional["UserHistory"] = Relationship(back_populates="user")
-
     connections: list["GuardianConnection"] = Relationship(back_populates="user")
     guardian: Optional["Guardian"] = Relationship(back_populates="owner")
     rewards: list["UserWonReward"] = Relationship(back_populates="user")
-
-    device_ip: Optional["DeviceID"] = Relationship(
-        back_populates="user"
-    )
-
-    recent_activity: Optional["RecentActivity"] = Relationship(back_populates="user")
 
 
 class UserWonReward(SQLModel, table=True):
     id: str = Field(default_factory=create_id, primary_key=True)
     order_id: int = Field(default_factory=create_number_id, unique=True)
 
-    user_id: str = Field(default=None, foreign_key="user.id")
+    user_id: str = Field(default=None, foreign_key="user.id", index=True)
     user: Optional["User"] = Relationship(back_populates="rewards")
 
     reward_id: str = Field(default=None, foreign_key="reward.id")
     reward: Optional["Reward"] = Relationship()
-    purchased_at: Optional[datetime] = Field(default=None, nullable=True)
+    purchased_at: datetime | None = Field(default=None, nullable=True)
 
 
 class GuardianReport(SQLModel, table=True):
     id: str = Field(default_factory=create_id, primary_key=True)
 
-    content: str 
-    
-    guardian_id: Optional[str] = Field(default=None, foreign_key="guardian.id")
-    
-    send_to_id: Optional[str] = Field(default=None, foreign_key="user.id")
+    content: str
+
+    guardian_id: str | None = Field(default=None, foreign_key="guardian.id", index=True)
+
+    send_to_id: str | None = Field(default=None, foreign_key="user.id")
     send_to: Optional["User"] = Relationship(
         sa_relationship_kwargs={"foreign_keys": "GuardianReport.send_to_id"}
     )
-    
+
     updated_at: date = Field(default_factory=date.today)
-    created_at: Optional[datetime] = Field(default_factory=utcnow_naive, nullable=True)
+    created_at: datetime | None = Field(default_factory=utcnow_naive, nullable=True)
 
 
 class Guardian(SQLModel, table=True):
@@ -176,9 +159,8 @@ class Guardian(SQLModel, table=True):
     name: str
     guardian_type: GuardianType = Field(default=GuardianType.PERSONAL)
 
-    owner_id: Optional[str] = Field(default=None, foreign_key="user.id")
+    owner_id: str | None = Field(default=None, foreign_key="user.id", index=True)
     owner: Optional["User"] = Relationship(back_populates="guardian")
-    code: Optional[int] = Field(default=None)
     on: bool = Field(default=False)
     connections: list["GuardianConnection"] = Relationship(back_populates="guardian")
 
@@ -192,13 +174,13 @@ class GuardianConnection(SQLModel, table=True):
 
     id: str = Field(default_factory=create_id, primary_key=True)
 
-    guardian_id: str = Field(default=None, foreign_key="guardian.id")
+    guardian_id: str = Field(default=None, foreign_key="guardian.id", index=True)
     guardian: Optional["Guardian"] = Relationship(back_populates="connections")
 
-    user_id: str = Field(default=None, foreign_key="user.id")
+    user_id: str = Field(default=None, foreign_key="user.id", index=True)
     user_name: str = Field(default=None)
     user: Optional["User"] = Relationship(back_populates="connections")
-    
+
     relationship_with_owner: RelationshipType = Field(default=RelationshipType.IS_OWNER)
 
 
@@ -214,21 +196,9 @@ class GuardianSettings(SQLModel, table=True):
     points_loss_enabled: bool = Field(default=True)
     base_points_lost: int = Field(default=5)
     reports_enabled: bool = Field(default=True)
-    
-    guardian_id: Optional[str] = Field(default=None, foreign_key="guardian.id", unique=True)
+
+    guardian_id: str | None = Field(default=None, foreign_key="guardian.id", unique=True)
     guardian: Optional["Guardian"] = Relationship(back_populates="guardian_settings")
-
-
-class DeviceID(SQLModel, table=True):
-    __tablename__ = "device_ip"
-
-    id: str = Field(default_factory=create_id, primary_key=True)
-    ip_address: Optional[str] = Field(default=None)
-    
-    user_id: Optional[str] = Field(default=None, foreign_key="user.id", unique=True)
-    user: Optional["User"] = Relationship(
-        back_populates="device_ip"
-    )
 
 
 class GuardianRestrictions(SQLModel, table=True):
@@ -236,28 +206,14 @@ class GuardianRestrictions(SQLModel, table=True):
 
     id: str = Field(default_factory=create_id, primary_key=True)
 
-    guardian_id: Optional[str] = Field(default=None, foreign_key="guardian.id", unique=True)
+    guardian_id: str | None = Field(default=None, foreign_key="guardian.id", unique=True)
     guardian: Optional["Guardian"] = Relationship(back_populates="restrictions")
-    
+
     default_restrictions: list = Field(
-            default_factory=default_restrictions_on_creation, 
-            sa_column=Column(MutableList.as_mutable(JSON)))
-    
-    restrictions: list = Field(
-        default_factory=list, 
-        sa_column=Column(MutableList.as_mutable(JSON)))
-    
-    
+        default_factory=default_restrictions_on_creation,
+        sa_column=Column(MutableList.as_mutable(JSON)),
+    )
+    restrictions: list = Field(default_factory=list, sa_column=Column(MutableList.as_mutable(JSON)))
+
     is_active: bool = Field(default=True)
     updated_at: date = Field(default_factory=date.today)
-
-
-class RecentActivity(SQLModel, table=True):
-    __tablename__ = "recent_activity"
-
-    id: str = Field(default_factory=create_id, primary_key=True)
-
-    user_id: Optional[str] = Field(default=None, foreign_key="user.id")
-    user: Optional["User"] = Relationship(back_populates="recent_activity")
-
-    activities: list = Field(default_factory=list, sa_type=JSON)

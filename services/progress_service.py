@@ -3,9 +3,11 @@
 Every point a user earns or loses goes through here, so the daily caps and the per-day stats
 always agree with the balance. Nothing in this module commits; callers commit once per request.
 """
+
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Callable
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlmodel import Session, select
@@ -64,21 +66,79 @@ class Achievement:
 
 
 ACHIEVEMENTS: list[Achievement] = [
-    Achievement("first_session", "First steps", "Start your first session.", "footprints", 20, 1, lambda p: p.total_sessions),
+    Achievement(
+        "first_session",
+        "First steps",
+        "Start your first session.",
+        "footprints",
+        20,
+        1,
+        lambda p: p.total_sessions,
+    ),
     Achievement("goal_1", "Goal getter", "Complete a daily goal.", "target", 25, 1, lambda p: p.total_goals),
-    Achievement("first_heed", "Walked away", "Move away from content after a warning.", "heart-handshake", 25, 1, lambda p: p.total_heeded),
-    Achievement("clean_hour", "Clean hour", "Browse 60 clean minutes.", "sparkles", 50, 60, lambda p: p.total_clean_minutes),
+    Achievement(
+        "first_heed",
+        "Walked away",
+        "Move away from content after a warning.",
+        "heart-handshake",
+        25,
+        1,
+        lambda p: p.total_heeded,
+    ),
+    Achievement(
+        "clean_hour",
+        "Clean hour",
+        "Browse 60 clean minutes.",
+        "sparkles",
+        50,
+        60,
+        lambda p: p.total_clean_minutes,
+    ),
     Achievement("streak_3", "On a roll", "Reach a 3-day streak.", "flame", 50, 3, lambda p: p.streak_best),
-    Achievement("perfect_day", "Perfect day", "Complete a daily goal without ignoring a warning.", "sun", 50, 1, lambda p: p.total_perfect_days),
+    Achievement(
+        "perfect_day",
+        "Perfect day",
+        "Complete a daily goal without ignoring a warning.",
+        "sun",
+        50,
+        1,
+        lambda p: p.total_perfect_days,
+    ),
     Achievement("level_5", "Rising star", "Reach level 5.", "star", 100, 5, lambda p: level_for_xp(p.xp)),
-    Achievement("heed_10", "Strong will", "Heed 10 warnings.", "shield-check", 100, 10, lambda p: p.total_heeded),
-    Achievement("streak_7", "Week warrior", "Reach a 7-day streak.", "calendar-check", 150, 7, lambda p: p.streak_best),
-    Achievement("goals_10", "Habit builder", "Complete 10 daily goals.", "repeat", 150, 10, lambda p: p.total_goals),
-    Achievement("clean_10h", "Steady scroller", "Browse 600 clean minutes.", "leaf", 200, 600, lambda p: p.total_clean_minutes),
-    Achievement("level_10", "Trailblazer", "Reach level 10.", "rocket", 250, 10, lambda p: level_for_xp(p.xp)),
+    Achievement(
+        "heed_10", "Strong will", "Heed 10 warnings.", "shield-check", 100, 10, lambda p: p.total_heeded
+    ),
+    Achievement(
+        "streak_7", "Week warrior", "Reach a 7-day streak.", "calendar-check", 150, 7, lambda p: p.streak_best
+    ),
+    Achievement(
+        "goals_10", "Habit builder", "Complete 10 daily goals.", "repeat", 150, 10, lambda p: p.total_goals
+    ),
+    Achievement(
+        "clean_10h",
+        "Steady scroller",
+        "Browse 600 clean minutes.",
+        "leaf",
+        200,
+        600,
+        lambda p: p.total_clean_minutes,
+    ),
+    Achievement(
+        "level_10", "Trailblazer", "Reach level 10.", "rocket", 250, 10, lambda p: level_for_xp(p.xp)
+    ),
     Achievement("heed_50", "Unshakeable", "Heed 50 warnings.", "shield", 300, 50, lambda p: p.total_heeded),
-    Achievement("streak_30", "Unstoppable", "Reach a 30-day streak.", "crown", 500, 30, lambda p: p.streak_best),
-    Achievement("first_purchase", "Treat yourself", "Buy something in the shop.", "gift", 25, 1, lambda p: p.total_purchases),
+    Achievement(
+        "streak_30", "Unstoppable", "Reach a 30-day streak.", "crown", 500, 30, lambda p: p.streak_best
+    ),
+    Achievement(
+        "first_purchase",
+        "Treat yourself",
+        "Buy something in the shop.",
+        "gift",
+        25,
+        1,
+        lambda p: p.total_purchases,
+    ),
 ]
 ACHIEVEMENTS_BY_CODE = {a.code: a for a in ACHIEVEMENTS}
 
@@ -100,8 +160,17 @@ class Outcome:
         return self
 
 
-def _event(type_: str, title: str, description: str, icon: str, points: int = 0, xp: int = 0) -> dict[str, Any]:
-    return {"type": type_, "title": title, "description": description, "icon": icon, "points": points, "xp": xp}
+def _event(
+    type_: str, title: str, description: str, icon: str, points: int = 0, xp: int = 0
+) -> dict[str, Any]:
+    return {
+        "type": type_,
+        "title": title,
+        "description": description,
+        "icon": icon,
+        "points": points,
+        "xp": xp,
+    }
 
 
 def valid_timezone(name: str) -> bool:
@@ -127,10 +196,12 @@ class ProgressService:
             tz = ZoneInfo(progress.timezone)
         except (ZoneInfoNotFoundError, ValueError):
             tz = ZoneInfo("UTC")
-        return now_utc.replace(tzinfo=timezone.utc).astimezone(tz).date()
+        return now_utc.replace(tzinfo=UTC).astimezone(tz).date()
 
     def day_stats(self, session: Session, user_id: str, day: date) -> DailyStats:
-        stats = session.exec(select(DailyStats).where(DailyStats.user_id == user_id, DailyStats.day == day)).first()
+        stats = session.exec(
+            select(DailyStats).where(DailyStats.user_id == user_id, DailyStats.day == day)
+        ).first()
         if stats is None:
             stats = DailyStats(user_id=user_id, day=day)
             session.add(stats)
@@ -172,10 +243,21 @@ class ProgressService:
                 )
             )
 
-    def _finish(self, session: Session, user: User, progress: UserProgress, stats: DailyStats, now: datetime, outcome: Outcome) -> Outcome:
+    def _finish(
+        self,
+        session: Session,
+        user: User,
+        progress: UserProgress,
+        stats: DailyStats,
+        now: datetime,
+        outcome: Outcome,
+    ) -> Outcome:
         """Unlock any achievements the action earned. Their rewards can unlock more (levels), so repeat."""
         unlocked = {
-            code for code in session.exec(select(UserAchievement.code).where(UserAchievement.user_id == user.id)).all()
+            code
+            for code in session.exec(
+                select(UserAchievement.code).where(UserAchievement.user_id == user.id)
+            ).all()
         }
         for _ in range(len(ACHIEVEMENTS)):
             newly = [a for a in ACHIEVEMENTS if a.code not in unlocked and a.metric(progress) >= a.target]
@@ -242,7 +324,12 @@ class ProgressService:
         progress.streak_best = max(progress.streak_best, progress.streak_current)
         if progress.streak_current > 1:
             outcome.events.append(
-                _event("streak", f"{progress.streak_current}-day streak!", "Come back tomorrow to keep it going.", "flame")
+                _event(
+                    "streak",
+                    f"{progress.streak_current}-day streak!",
+                    "Come back tomorrow to keep it going.",
+                    "flame",
+                )
             )
 
     @staticmethod
@@ -305,7 +392,9 @@ class ProgressService:
             self._grant(user, progress, stats, AVOIDANCE_POINTS, AVOIDANCE_POINTS, outcome)
         return self._finish(session, user, progress, stats, now, outcome)
 
-    def record_ignored(self, session: Session, user: User, now: datetime, penalty: int, first_in_episode: bool) -> Outcome:
+    def record_ignored(
+        self, session: Session, user: User, now: datetime, penalty: int, first_in_episode: bool
+    ) -> Outcome:
         progress, stats = self.today(session, user, now)
         if first_in_episode:
             stats.warnings_ignored += 1

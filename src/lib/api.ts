@@ -119,8 +119,11 @@ export const api = {
 
   // Account
   updateName: (new_name: string) => request<User>("/users/me/name", json("PATCH", { new_name })),
+  // Returns a fresh token: every other device is signed out
   changePassword: (current_password: string, new_password: string) =>
-    request<User>("/users/me/password", json("PUT", { current_password, new_password })),
+    request<AuthResponse>("/users/me/password", json("PUT", { current_password, new_password })),
+  deleteAccount: (password: string) =>
+    request<{ message: string }>("/users/me/delete", json("POST", { password })),
   lookupDependent: (numberId: number) => request<UserSummary>(`/users/number/${numberId}`),
 
   // Guardians

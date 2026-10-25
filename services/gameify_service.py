@@ -1,9 +1,12 @@
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from sqlalchemy import update
 from sqlmodel import Session, select
 
+from helpers import clock
 from models.models import Reward, RewardType, User, UserWonReward
+
+from .errors import NotFound, ServiceError
 from .progress_service import MAX_STREAK_FREEZES, Outcome, ProgressService
 
 progress_service = ProgressService()
@@ -22,14 +25,6 @@ STARTER_REWARDS = [
 ]
 
 
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-class ShopError(Exception):
-    pass
-
-
 class Gameify:
     def set_points(self, session: Session, user: User, amount: int):
         user.currency = amount
@@ -46,25 +41,25 @@ class Gameify:
             .values(currency=User.currency - amount)
         )
         if result.rowcount != 1:
-            raise ShopError("You don't have enough points for this")
+            raise ServiceError("You don't have enough points for this")
         session.refresh(user)
 
     def buy_reward(self, session: Session, user: User, reward_id: str) -> Outcome:
         reward = self.get_reward(session, reward_id)
         if not reward:
-            raise ShopError("That reward doesn't exist")
+            raise NotFound("That reward doesn't exist")
 
         progress = progress_service.progress(session, user)
         if reward.type == RewardType.STREAK_FREEZE and progress.streak_freezes >= MAX_STREAK_FREEZES:
-            raise ShopError(f"You can hold at most {MAX_STREAK_FREEZES} streak freezes")
+            raise ServiceError(f"You can hold at most {MAX_STREAK_FREEZES} streak freezes")
 
         self._spend(session, user, reward.cost)
         if reward.type == RewardType.STREAK_FREEZE:
             # Freezes go straight into the streak, there is nothing to hold on to
             progress.streak_freezes += 1
         else:
-            session.add(UserWonReward(user_id=user.id, reward_id=reward.id, purchased_at=_utcnow()))
-        outcome = progress_service.record_purchase(session, user, _utcnow())
+            session.add(UserWonReward(user_id=user.id, reward_id=reward.id, purchased_at=clock.now()))
+        outcome = progress_service.record_purchase(session, user, clock.now())
         session.commit()
         session.refresh(user)
         return outcome
@@ -73,9 +68,9 @@ class Gameify:
         """Refund an owned reward bought within the refund window. Returns the points given back."""
         owned = session.get(UserWonReward, owned_id)
         if not owned or owned.user_id != user.id or not owned.reward:
-            raise ShopError("You don't own that reward")
-        if owned.purchased_at is None or _utcnow() - owned.purchased_at > REFUND_WINDOW:
-            raise ShopError("Rewards can only be refunded within 24 hours of buying them")
+            raise NotFound("You don't own that reward")
+        if owned.purchased_at is None or clock.now() - owned.purchased_at > REFUND_WINDOW:
+            raise ServiceError("Rewards can only be refunded within 24 hours of buying them")
 
         amount = int(owned.reward.cost * REFUND_RATE)
         user.currency += amount
@@ -97,10 +92,9 @@ def sync_starter_rewards(session: Session) -> None:
     session.commit()
 
 
-def add_reward(session: Session, name: str, reward_amount: int, reward_cost: int, reward_type: RewardType = RewardType.GIFT_CARD):
-    try:
-        session.add(Reward(name=name, type=RewardType(reward_type), amount=reward_amount, cost=reward_cost))
-        session.commit()
-    except Exception as ex:
-        session.rollback()
-        raise ValueError(f"Could not add reward: {ex}")
+def add_reward(session: Session, name: str, amount: int, cost: int, reward_type: RewardType) -> Reward:
+    reward = Reward(name=name, type=reward_type, amount=amount, cost=cost)
+    session.add(reward)
+    session.commit()
+    session.refresh(reward)
+    return reward

@@ -1,301 +1,121 @@
-import ollama
-from helpers.config import Config
-from helpers.prompt import Prompts
-import json
+"""Thin wrapper around the AI providers. Every call returns parsed JSON, or None when it fails."""
+
 import base64
 import json
-from google.genai import types
-
+import logging
 from typing import Any
-import base64
-from google import genai
-            
+
+from helpers.config import Config
+
+log = logging.getLogger(__name__)
+
+# Seconds to wait for a model before treating the scan as unanalyzable
+REQUEST_TIMEOUT = 60
+
+
+def _mime_type(image_bytes: bytes) -> str:
+    if image_bytes.startswith(b"\xff\xd8"):
+        return "image/jpeg"
+    if image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/png"
+
+
+def parse_json(text: str | None) -> dict[str, Any] | None:
+    """Parse a model's JSON answer, tolerating markdown code fences around it."""
+    if not text:
+        return None
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1].rsplit("```", 1)[0]
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        log.warning("Model returned invalid JSON: %.200s", text)
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
 class Engine:
-    def __init__(self, api_key:str|None=Config().gemini_api_key, ai_to_use:str="ollama") -> None:
-        if ai_to_use not in ['gemini', 'ollama']:
-            raise ValueError(f"'{ai_to_use}' is not a valid AI")
-        
-        self.ollama_model = Config.ollama_qwen_2_dot_5
-        self.description_reader_ollama_model = Config.ollama_guard
+    def __init__(self, ai_to_use: str = "ollama") -> None:
+        if ai_to_use not in ("gemini", "ollama"):
+            raise ValueError(f"'{ai_to_use}' is not a supported AI backend")
+
+        if ai_to_use == "gemini" and not Config.gemini_api_key:
+            log.warning("AI_BACKEND=gemini but no GEMINI_API_KEY is set; using Ollama instead")
+            ai_to_use = "ollama"
         self.backend = ai_to_use
-        self.ollama_client = ollama.Client(host=Config.ollama_host)
 
-        if self.backend == 'gemini' and api_key:
-            # Use Gemini
-            
-            
-            self.client = genai.Client(api_key=api_key)
-            self.llm = Config.gemini_model
-            
-            print(f"✓ Gemini Backend Initialized: {self.client}")
-            
+        if self.backend == "gemini":
+            from google import genai
+
+            self.gemini = genai.Client(api_key=Config.gemini_api_key)
+            self.gemini_model = Config.gemini_model
         else:
-            # Use Ollama
+            import ollama
 
-            self.backend = 'ollama'
-            
-            # Check if Ollama is available
-            # try:
-            #     self.ollama_client.show(self.ollama_model)
-            #     print(f"✓ Using Ollama ({self.ollama_model})")
-            # except:
-            #     print(f"⚠ Ollama model '{self.ollama_model}' not found")
-         
-    
+            self.ollama = ollama.Client(host=Config.ollama_host, timeout=REQUEST_TIMEOUT)
+            self.ollama_model = Config.ollama_qwen_2_dot_5
+        log.info("AI engine: %s", self.backend)
 
-    def _is_the_same_image(self,
-                        new_image_bytes: bytes, 
-                        previous_images: list[bytes],
-                        system_prompt: str|None = None, 
-                        return_json: bool = False
-                       ) -> bool:
-    
-        if not previous_images or not new_image_bytes:
-            return False
-            
-        if system_prompt is None:
-            system_prompt = Prompts().is_the_same_image()
-            
-        previous_image = previous_images[-1]
-        
-        if self.backend == 'gemini':
-            try:
-                user_content = types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_text(text="Here is the NEW image to evaluate:"),
-                        types.Part.from_bytes(data=new_image_bytes, mime_type="image/png"),
-                        types.Part.from_text(text="Here is the PREVIOUS image for comparison:"),
-                        types.Part.from_bytes(data=previous_image, mime_type="image/png")
-                    ]
-                )
-                        
-                response = self.client.models.generate_content(
-                    model=self.llm, 
-                    contents=[user_content], 
-                    config=types.GenerateContentConfig( 
-                        system_instruction=system_prompt,
-                        response_mime_type="application/json" if return_json else None
-                    )
-                )
-                        
-                content = response.text or ""
-                
-                if return_json:
-                    parsed = json.loads(content or '{}')
-                    return parsed # or handle json return as needed
-                    
-                return "true" in content.lower().strip()
-                
-            except Exception as e:
-                print(f"[engine.classify_image gemini] ⚠️ Gemini error: {e}")
-                return False
-                
-        else:  # Ollama
-            try:
-                encoded_new = base64.b64encode(new_image_bytes).decode('utf-8')
-                encoded_prev = base64.b64encode(previous_image).decode('utf-8')
-                    
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user", 
-                        "content": "Please compare these two images. The first is the NEW image, the second is the PREVIOUS image.",
-                        "images": [encoded_new, encoded_prev]
-                    }
-                ]
-                        
-                response = self.ollama_client.chat(
-                    model=self.ollama_model,
-                    messages=messages,
-                    format="json" if return_json else None,
-                    options={'temperature': 0.2}
-                )
-                        
-                content = response['message']['content'] or ""
-                
-                if return_json:
-                    return json.loads(content or '{}')
-                    
-                return "true" in content.lower().strip()
-                            
-            except Exception as e:
-                print(f"⚠️ [engine.classify_image] Ollama error: {e}")
-                return False
-            
-    def _classify_image(self, 
-                        image_bytes: bytes, 
-                        system_prompt: str=Prompts().image_classification_prompt(), 
-                        return_json: bool = True) -> Any:
-        """
-        Classifies an image using the specified system prompt.
-        """
-        if not image_bytes or not system_prompt:
-            return None
-        
-        if self.backend == 'gemini':
-            try:
-                from google.genai import types
-                
-                user_content = types.Content(
-                    role="user",
-                    parts=[types.Part.from_bytes(data=image_bytes, mime_type="image/png")]
-                )
-                
-                response = self.client.models.generate_content(
-                    model=self.llm, 
-                    contents=[user_content], 
-                    config=types.GenerateContentConfig( 
-                        system_instruction=system_prompt,
-                        response_mime_type="application/json" if return_json else None
-                    )
-                )
-                
-                content = response.text 
-                if return_json:
-                    content = json.loads(response.text or '[]')
-                return content
-            except Exception as e:
-                print(f"[engine.classify_image gemini] ⚠️ Gemini error: {e}")
-                return '[]'
-        
-        else:  # Ollama
-            try:
-                encoded_image = base64.b64encode(image_bytes).decode('utf-8')
-            
-                m = [
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user", 
-                        "content": "Please analyze this image.",
-                        "images": [encoded_image]
-                    }
-                ]
-                
-                response = self.ollama_client.chat(
-                    model=self.ollama_model,
-                    messages=m,
-                    format="json" if return_json else None,
-                    options={'temperature': 0.2}
-                )
-                
-                content = response['message']['content']
-                if return_json:
-                    content = json.loads(response['message']['content'] or '[]')
-                return content
-                    
-            except Exception as e:
-                print(f"⚠️ [engine.classify_image] Ollama error: {e}")
-                return '[]'
+    def describe_image(self, image_bytes: bytes, system_prompt: str) -> dict[str, Any] | None:
+        """Ask a vision model to describe a screenshot as JSON."""
+        if self.backend == "gemini":
+            from google.genai import types
 
-    def _generate(self, 
-                 text:str, 
-                 system_prompt:str, 
-                 return_json:bool=False,
-                 _use_ollama:bool=False,
-                 _ignore_text:bool=False,
-                 )->Any:
-        """
-        For this project, text will be an image of the users screen.
-        Text is the description of the image, and system_prompt is the prompt to classify the image.
-        """
-        if not text and not _ignore_text or not system_prompt:
-            return 
-        m = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"<<<DATA>>>\n{text}\n<<<DATA>>>" if text else ""}
-        ]
-        
-        
-        err = {
-            "content": text,
-            "logic": "",
-            "error": True
-        } if return_json else ""
-        if self.backend == 'gemini' and not _use_ollama:
-            try:
-                from google.genai import types
-                
-                # For Gemini, we convert the messages to their content format
-                # Note: Gemini 2.0+ handles system_instruction separately
-                
-                parts = [types.Part.from_text(text=f"<<<TEXT>>>\n{text}\n<<<TEXT>>>")] if text else []
+            content = types.Content(
+                role="user",
+                parts=[types.Part.from_bytes(data=image_bytes, mime_type=_mime_type(image_bytes))],
+            )
+            return self._gemini(content, system_prompt)
+        return self._ollama(
+            system_prompt,
+            {
+                "role": "user",
+                "content": "Please analyze this image.",
+                "images": [base64.b64encode(image_bytes).decode()],
+            },
+        )
 
-                 
-                user_content = types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=f"<<<TEXT>>>\n{text}\n<<<TEXT>>>")]
-                )
-                
-                response = self.client.models.generate_content(
-                    model=self.llm, 
-                    contents=[user_content], 
-                    config=types.GenerateContentConfig( 
-                        system_instruction=system_prompt,
-                        response_mime_type="application/json" if return_json else None
-                    )
-                )
-                
-                content = response.text 
-                if return_json:
-                    content = json.loads(response.text or '[]')
-                return content
-            except Exception as e:
-                print(f"[engine.generate gemini] ⚠️ Gemini error: {e}")
-                if "429" in str(e):
-                    print(" ⚠️⚠️⚠️ RAN OUT OF GEMINI TOKENS")
-                    self.backend = "ollama"
-                    return err
-                
-                if "503" in str(e):
-                    print("⚠️ Gemini service unavailable, switching to ollama, please hold...")
-                    # self.backend = 'ollama'
-                    # return self._generate(text=text, 
-                    #                      system_prompt=system_prompt, 
-                    #                      return_json=return_json, 
-                    #                      _use_ollama=True)  # Retry with Ollama
-                    return err
-                return '[]'
-        
-        else:  # Ollama
-            try:
+    def judge(self, text: str, system_prompt: str) -> dict[str, Any] | None:
+        """Ask a model for a JSON verdict about a text description."""
+        # The description comes from screen content, so it is fenced off as data, never instructions
+        fenced = f"<<<DATA>>>\n{text}\n<<<DATA>>>"
+        if self.backend == "gemini":
+            from google.genai import types
 
-                response = self.ollama_client.chat(
-                    model=self.ollama_model,
-                    messages=m,
-                    format="json" if return_json else None,
-                    options={'temperature': 0.2}
-                )
-                content = response['message']['content']
-                if return_json:
-                    content = json.loads(response['message']['content'])
-                return content
-                
-            except Exception as e:
-                print(f"⚠️ [engine.generate] Ollama error: {e}")
-                
-                return '[]'
-            
-    
-    def _parse_json(self, text: str, default: Any = None) -> Any:
-        """Robust JSON parsing."""
-        if not text or text.strip() == '':
-            return default if default is not None else []
-        
-        text = text.strip()
-        
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
-        
-        # Try to parse
+            return self._gemini(
+                types.Content(role="user", parts=[types.Part.from_text(text=fenced)]), system_prompt
+            )
+        return self._ollama(system_prompt, {"role": "user", "content": fenced})
+
+    def _gemini(self, content: Any, system_prompt: str) -> dict[str, Any] | None:
+        from google.genai import types
+
         try:
-            parsed = json.loads(text)
-            return parsed
-        except json.JSONDecodeError as e:
-            print(f"⚠ JSON parse error: {e}")
-            print(f"  Raw text: {text[:200]}...")
-            return default if default is not None else []
-        
-            
+            response = self.gemini.models.generate_content(
+                model=self.gemini_model,
+                contents=[content],
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    response_mime_type="application/json",
+                    http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT * 1000),
+                ),
+            )
+        except Exception:
+            log.exception("Gemini request failed")
+            return None
+        return parse_json(response.text)
+
+    def _ollama(self, system_prompt: str, message: dict[str, Any]) -> dict[str, Any] | None:
+        try:
+            response = self.ollama.chat(
+                model=self.ollama_model,
+                messages=[{"role": "system", "content": system_prompt}, message],
+                format="json",
+                options={"temperature": 0.2},
+            )
+        except Exception:
+            log.exception("Ollama request failed (is it running at %s?)", Config.ollama_host)
+            return None
+        return parse_json(response["message"]["content"])

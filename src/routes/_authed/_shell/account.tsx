@@ -3,6 +3,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
@@ -21,9 +32,10 @@ const ACCOUNT_LABELS = {
 
 function Account() {
   const me = useMe();
-  const { refresh, logout } = useAuth();
+  const { refresh, logout, adoptToken } = useAuth();
   const [name, setName] = useState(me.user.name);
   const [pw, setPw] = useState({ current: "", next: "" });
+  const [deletePassword, setDeletePassword] = useState("");
 
   const rename = useMutation({
     mutationFn: () => api.updateName(name.trim()),
@@ -35,9 +47,18 @@ function Account() {
   });
   const changePassword = useMutation({
     mutationFn: () => api.changePassword(pw.current, pw.next),
-    onSuccess: () => {
-      toast.success("Password changed");
+    onSuccess: (r) => {
+      adoptToken(r.access_token);
+      toast.success("Password changed. Other devices have been signed out.");
       setPw({ current: "", next: "" });
+    },
+    onError: toastError,
+  });
+  const deleteAccount = useMutation({
+    mutationFn: () => api.deleteAccount(deletePassword),
+    onSuccess: () => {
+      toast.success("Your account has been deleted");
+      logout();
     },
     onError: toastError,
   });
@@ -122,6 +143,49 @@ function Account() {
       <button className="duo-btn duo-btn-outline mt-6" onClick={logout}>
         Sign out
       </button>
+
+      <section className="mt-10 rounded-2xl border-2 border-destructive/30 p-6">
+        <h3 className="font-display text-lg font-extrabold text-destructive">Delete account</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {me.is_guardian_owner && me.guardian?.guardian_type === "family"
+            ? "This also deletes your family guardian. Its members are disconnected and their reports removed."
+            : "Your points, badges and history are deleted for good."}
+        </p>
+        <AlertDialog onOpenChange={(open) => !open && setDeletePassword("")}>
+          <AlertDialogTrigger asChild>
+            <button className="mt-4 text-sm font-bold text-destructive underline">
+              Delete my account
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This can't be undone. Enter your password to confirm.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input
+              type="password"
+              autoComplete="current-password"
+              aria-label="Password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep my account</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={!deletePassword || deleteAccount.isPending}
+                onClick={(e) => {
+                  e.preventDefault();
+                  deleteAccount.mutate();
+                }}
+              >
+                Delete forever
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </section>
     </>
   );
 }

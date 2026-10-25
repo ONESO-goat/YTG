@@ -109,7 +109,8 @@ export function useMonitor({ onResult, onStarted, onStopped }: Options = {}) {
         await stop(error.message);
         return;
       }
-      failuresRef.current += 1;
+      // Scanned too soon after the previous one (e.g. the tab was throttled): just wait for the next tick
+      if (!(error instanceof ApiError && error.status === 429)) failuresRef.current += 1;
       if (failuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
         await stop(
           `Monitoring stopped: ${error instanceof Error ? error.message : "the server isn't responding"}`,

@@ -25,6 +25,8 @@ interface AuthContextValue {
   }) => Promise<Me>;
   logout: () => void;
   refresh: () => Promise<unknown>;
+  /** Swap in a new token for the same user, e.g. after a password change. */
+  adoptToken: (token: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -73,6 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signup: async (body) => startSession((await api.signup(body)).access_token),
       logout,
       refresh: () => queryClient.invalidateQueries({ queryKey: meQueryKey }),
+      adoptToken: (accessToken) => {
+        tokenStore.set(accessToken);
+        setToken(accessToken);
+      },
     };
   }, [token, meQuery.data, meQuery.isError, startSession, logout, queryClient]);
 

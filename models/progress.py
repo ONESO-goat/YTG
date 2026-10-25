@@ -1,6 +1,6 @@
 """Gamification state: lifetime progress, per-day stats and unlocked achievements."""
+
 from datetime import date, datetime
-from typing import Optional
 
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
@@ -19,7 +19,7 @@ class UserProgress(SQLModel, table=True):
     streak_current: int = Field(default=0)
     streak_best: int = Field(default=0)
     # Last local day the daily goal was completed
-    streak_last_day: Optional[date] = Field(default=None)
+    streak_last_day: date | None = Field(default=None)
     streak_freezes: int = Field(default=0)
 
     total_clean_minutes: int = Field(default=0)

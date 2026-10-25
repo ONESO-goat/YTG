@@ -1,28 +1,23 @@
-from datetime import datetime, timezone
-import random
+from datetime import datetime
 
 from sqlmodel import Session, select
 
 from agent.bot import Analysis, ScreenClassifier
 from agent.frames import frame_fingerprint, is_same_frame
+from helpers import clock
 from models.guardian_session import GuardianSession
-from models.models import (
-    STRICTNESS_MULTIPLIERS,
-    Guardian,
-    GuardianReport,
-    GuardianSettings,
-    GuardianType,
-    User,
-    default_restrictions_on_creation,
-)
+from models.models import STRICTNESS_MULTIPLIERS, Guardian, GuardianSettings, GuardianType, User
+
+from .errors import Conflict, ServiceError
 from .guardian_services import GuardianServices
 from .progress_service import Outcome, ProgressService
-from .reports_service import create_report
 
 guardian_services = GuardianServices()
 progress_service = ProgressService()
 
-# Scans arrive every ~5 seconds. An unchanged screen earns nothing, and after ~5 minutes the session stops.
+# Scans arrive every ~5 seconds; anything much faster is a misbehaving or abusive client
+MIN_SCAN_INTERVAL_SECONDS = 2
+# An unchanged screen earns nothing, and after ~5 minutes of them the session stops
 IDLE_SHUTDOWN_FRAMES = 60
 # Staying on flagged content this long after the warning counts as ignoring it
 IGNORE_THRESHOLD_SECONDS = 30
@@ -35,67 +30,11 @@ AVOIDANCE_SECONDS = 15
 REPEAT_OFFENDER_WARNINGS = 5
 
 
-class SessionInactiveError(Exception):
-    pass
-
-
-def utcnow() -> datetime:
-    """Naive UTC, matching how timestamps are stored in SQLite."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
 class YTGSessionService:
+    def get_users_session(self, session: Session, user: User) -> GuardianSession | None:
+        return session.exec(select(GuardianSession).where(GuardianSession.user_id == user.id)).first()
 
-    def turn_off_guardian(self, session: Session, guardian_id: str) -> tuple[bool, str]:
-        """Turn off the guardian and pause every session under it."""
-        guardian_data, mes = guardian_services.get_guardian_data(session, guardian_id=guardian_id)
-        guardian = guardian_data.get("guardian")
-        if not guardian:
-            return False, mes
-        if not guardian.on:
-            return False, "Guardian is already off"
-
-        sessions = self.get_all_sessions_under_guardian(session=session, guardian=guardian)
-        for running_session in sessions:
-            running_session.end()
-        guardian.on = False
-        session.commit()
-        session.refresh(guardian)
-        return True, f"Guardian is now off, paused {len(sessions)} sessions"
-
-    def turn_on_guardian(self, session: Session, guardian_id: str) -> tuple[list[GuardianSession] | None, str]:
-        """Turn on the guardian so its members can start monitoring sessions."""
-        guardian_data, mes = guardian_services.get_guardian_data(session, guardian_id=guardian_id)
-        guardian = guardian_data.get("guardian")
-        if not guardian:
-            return None, mes
-        if guardian.on:
-            return None, "Guardian is already on"
-
-        new_sessions = []
-        for connection in guardian_services.get_all_connections(session=session, guardian=guardian):
-            user = session.get(User, connection.user_id)
-            if not user:
-                continue
-            s, _ = self.get_or_create(session=session, user=user, guardian=guardian)
-            new_sessions.append(s)
-        guardian.on = True
-        session.commit()
-        session.refresh(guardian)
-        return new_sessions, f"Guardian is on, {len(new_sessions)} member sessions ready"
-
-    def get_all_sessions_under_guardian(self, session: Session, guardian: Guardian):
-        return session.exec(select(GuardianSession).where(GuardianSession.guardian_id == guardian.id)).all()
-
-    def get_YTGSession(self, session: Session, session_id: str) -> tuple[GuardianSession | None, str]:
-        if not session or not session_id:
-            return None, "Session and ID are required"
-        sess = session.get(GuardianSession, session_id)
-        if not sess:
-            return None, f"No session under the id '{session_id}'"
-        return sess, "success"
-
-    def get_or_create(self, session: Session, user: User, guardian: Guardian) -> tuple[GuardianSession, bool]:
+    def get_or_create(self, session: Session, user: User, guardian: Guardian) -> GuardianSession:
         existing = session.exec(
             select(GuardianSession).where(
                 GuardianSession.user_id == user.id,
@@ -103,27 +42,34 @@ class YTGSessionService:
             )
         ).first()
         if existing:
-            return existing, False
-
+            return existing
         row = GuardianSession(user_id=user.id, guardian_id=guardian.id)
         session.add(row)
-        session.commit()
-        session.refresh(row)
-        return row, True
+        session.flush()
+        return row
 
-    def get_users_session(self, session: Session, user: User) -> GuardianSession | None:
-        return session.exec(select(GuardianSession).where(GuardianSession.user_id == user.id)).first()
-
-    def start_session(self, session: Session, sm_row: GuardianSession, user: User) -> Outcome:
+    def start_session(
+        self, session: Session, user: User, guardian: Guardian
+    ) -> tuple[GuardianSession, Outcome]:
+        if not guardian.on:
+            raise Conflict("Monitoring is turned off for this guardian")
+        sm_row = self.get_or_create(session, user, guardian)
         outcome = Outcome()
         if not sm_row.active:
             sm_row.start()
             sm_row.last_frame_hash = None
             sm_row.same_image_counter = 0
             sm_row.minute_timer = None
-            outcome = progress_service.record_session_start(session, user, utcnow())
+            outcome = progress_service.record_session_start(session, user, clock.now())
         session.commit()
-        return outcome
+        session.refresh(sm_row)
+        return sm_row, outcome
+
+    def stop_session(self, session: Session, sm_row: GuardianSession) -> GuardianSession:
+        sm_row.end()
+        session.commit()
+        session.refresh(sm_row)
+        return sm_row
 
     def _result(
         self,
@@ -161,29 +107,26 @@ class YTGSessionService:
         image_bytes: bytes,
     ) -> dict:
         if not session_row.active:
-            raise SessionInactiveError("This session is not running. Start it before sending scans.")
-
-        stuff, mes = guardian_services.get_guardian_data(session=session, guardian_id=session_row.guardian_id)
-        guardian: Guardian | None = stuff.get("guardian")
-        settings: GuardianSettings | None = stuff.get("settings")
-        restrictions = stuff.get("restrictions")
-        if not guardian or not settings:
-            raise ValueError(f"Guardian data missing during scan: {mes}")
+            raise Conflict("This session is not running. Start it before sending scans.")
+        guardian = session.get(Guardian, session_row.guardian_id)
+        user = session.get(User, session_row.user_id)
+        if not guardian or not user:
+            raise ServiceError("This session no longer belongs to a guardian")
         if not guardian.on:
             session_row.end()
             session.commit()
-            raise SessionInactiveError("Monitoring is turned off for this guardian.")
+            raise Conflict("Monitoring is turned off for this guardian.")
 
-        user = session.get(User, session_row.user_id)
-        if not user:
-            raise ValueError("User is missing during scan")
+        now = clock.now()
+        previous_scan_at = session_row.last_scan_at
+        if previous_scan_at and (now - previous_scan_at).total_seconds() < MIN_SCAN_INTERVAL_SECONDS:
+            raise ServiceError("Scans are arriving too quickly", status_code=429)
 
         fingerprint = frame_fingerprint(image_bytes)
         if fingerprint is None:
-            raise ValueError("Uploaded file is not a readable image")
+            raise ServiceError("Uploaded file is not a readable image")
 
-        now = utcnow()
-        previous_scan_at = session_row.last_scan_at
+        settings = guardian_services.settings(session, guardian)
         session_row.last_scan_at = now
 
         # An unchanged screen needs no new AI verdict and earns nothing: the clean-minute timer is
@@ -211,16 +154,11 @@ class YTGSessionService:
         session_row.same_image_counter = 0
         session_row.last_frame_hash = fingerprint
 
-        active_restrictions = (
-            [*restrictions.default_restrictions, *restrictions.restrictions]
-            if restrictions
-            else default_restrictions_on_creation()
-        )
         analysis = classifier.analyze(
             image_bytes=image_bytes,
             user_id=user.id,
             guardian_settings=settings,
-            restrictions=active_restrictions,
+            restrictions=guardian_services.active_restrictions(session, guardian),
         )
         if analysis.failed:
             # Neither reward nor punish when the AI couldn't decide; the next scan will retry
@@ -268,10 +206,10 @@ class YTGSessionService:
         sm_row.last_flag_category = analysis.category
         progress_service.record_warning(session, user, now)
 
-        breakdown = ScreenClassifier.breakdown(user, analysis, include_name=guardian.guardian_type == GuardianType.FAMILY)
-        self.add_event(session=session, content=breakdown, sm_row=sm_row)
-        if settings.reports_enabled:
-            create_report(session=session, guardian=guardian, content=breakdown)
+        include_name = guardian.guardian_type == GuardianType.FAMILY
+        guardian_services.report(
+            session, guardian, ScreenClassifier.breakdown(user, analysis, include_name), respect_settings=True
+        )
         return Outcome()
 
     def _maybe_penalize(
@@ -284,7 +222,7 @@ class YTGSessionService:
         category: str | None,
         now: datetime,
     ) -> Outcome:
-        """The user is still on flagged content after a warning. Past the threshold that counts as ignoring it."""
+        """The user is still on flagged content after a warning; past the threshold that is ignoring it."""
         started = sm_row.warning_started_at or now
         if (now - started).total_seconds() < IGNORE_THRESHOLD_SECONDS:
             return Outcome()
@@ -298,13 +236,14 @@ class YTGSessionService:
         sm_row.episode_penalties += 1
         sm_row.last_penalty_at = now
 
-        if first and settings.reports_enabled:
+        if first:
             who = f"{user.name} " if guardian.guardian_type == GuardianType.FAMILY else "You "
             what = category or sm_row.last_flag_category or "flagged content"
-            create_report(
-                session=session,
-                guardian=guardian,
-                content=f"{who}stayed on content flagged as {what} after being warned.",
+            guardian_services.report(
+                session,
+                guardian,
+                f"{who}stayed on content flagged as {what} after being warned.",
+                respect_settings=True,
             )
         penalty = self.penalty_for(settings, progress_service.warnings_today(session, user, now))
         return progress_service.record_ignored(session, user, now, penalty, first_in_episode=first)
@@ -321,7 +260,7 @@ class YTGSessionService:
 
     def _handle_clean(self, session: Session, sm_row: GuardianSession, user: User, now: datetime) -> Outcome:
         if sm_row.warning_active:
-            # The user moved away from flagged content. Once they stay away long enough, the warning was heeded.
+            # The user moved away from flagged content. Staying away long enough means the warning was heeded.
             if sm_row.tracking_start_at is None:
                 sm_row.tracking_start_at = now
                 sm_row.target_duration_seconds = AVOIDANCE_SECONDS
@@ -345,30 +284,3 @@ class YTGSessionService:
             sm_row.minute_timer = now
             return progress_service.record_clean_minute(session, user, now)
         return Outcome()
-
-    def delete_session(self, session: Session, session_id: str):
-        sess, mes = self.get_YTGSession(session=session, session_id=session_id)
-        if not sess:
-            return None, mes
-        session.delete(sess)
-        session.commit()
-        return True, "success"
-
-    def add_event(self, session: Session, sm_row: GuardianSession, content: str, time_duration: int | None = None):
-        if time_duration is None:
-            time_duration = random.randint(140, 300)
-        # Only the latest few are kept; reports hold the history
-        sm_row.events = [*sm_row.events[-19:], {"content": content, "should_avoid": True, "time_to_wait": time_duration}]
-
-    def flush_wipe_events(self, session: Session, sm_row: GuardianSession):
-        """Turn the session's pending events into reports for the guardian owner, then clear them."""
-        if not sm_row.events:
-            return
-        guardian = session.get(Guardian, sm_row.guardian_id)
-        if not guardian:
-            raise ValueError(f"Guardian of id '{sm_row.guardian_id}' does not exist")
-
-        for event in sm_row.events:
-            session.add(GuardianReport(content=event["content"], guardian_id=guardian.id, send_to_id=guardian.owner_id))
-        sm_row.events = []
-        session.commit()

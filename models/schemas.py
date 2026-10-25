@@ -1,6 +1,6 @@
 """Response shapes sent to the frontend. These never include password hashes."""
+
 from datetime import date, datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -21,6 +21,7 @@ class UserPublic(BaseModel):
 
 class UserSummary(BaseModel):
     """What other people (guardian owners, connections) get to see about a user."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -37,7 +38,7 @@ class GuardianPublic(BaseModel):
     id: str
     name: str
     guardian_type: GuardianType
-    owner_id: Optional[str]
+    owner_id: str | None
     on: bool
 
 
@@ -47,7 +48,7 @@ class ConnectionPublic(BaseModel):
     id: str
     guardian_id: str
     user_id: str
-    user_name: Optional[str]
+    user_name: str | None
     relationship_with_owner: RelationshipType
 
 
@@ -59,7 +60,7 @@ class SessionPublic(BaseModel):
     guardian_id: str
     active: bool
     warning_active: bool
-    last_scan_at: Optional[datetime]
+    last_scan_at: datetime | None
     created_at: datetime
 
 
@@ -68,10 +69,10 @@ class ReportPublic(BaseModel):
 
     id: str
     content: str
-    guardian_id: Optional[str]
-    send_to_id: Optional[str]
+    guardian_id: str | None
+    send_to_id: str | None
     updated_at: date
-    created_at: Optional[datetime]
+    created_at: datetime | None
 
 
 class RewardPublic(BaseModel):
@@ -88,8 +89,8 @@ class OwnedRewardPublic(BaseModel):
     id: str
     order_id: int
     reward: RewardPublic
-    purchased_at: Optional[datetime]
-    refundable_until: Optional[datetime]
+    purchased_at: datetime | None
+    refundable_until: datetime | None
 
 
 class AuthResponse(BaseModel):
@@ -101,9 +102,9 @@ class AuthResponse(BaseModel):
 class MeResponse(BaseModel):
     user: UserPublic
     # The guardian the user owns, or for dependents the guardian they are connected to
-    guardian: Optional[GuardianPublic]
+    guardian: GuardianPublic | None
     is_guardian_owner: bool
-    connection: Optional[ConnectionPublic]
+    connection: ConnectionPublic | None
 
 
 class GameEvent(BaseModel):
@@ -161,7 +162,7 @@ class AchievementPublic(BaseModel):
     points: int
     target: int
     progress: int
-    unlocked_at: Optional[datetime]
+    unlocked_at: datetime | None
 
 
 class LeaderboardEntry(BaseModel):
@@ -178,7 +179,7 @@ class Leaderboard(BaseModel):
     scope: str
     entries: list[LeaderboardEntry]
     # Set when the current user isn't among `entries`
-    me: Optional[LeaderboardEntry]
+    me: LeaderboardEntry | None
     # False when the user can't appear on this board (opted out, or a dependent on the global board)
     visible: bool
 
@@ -186,14 +187,14 @@ class Leaderboard(BaseModel):
 class MemberOverview(BaseModel):
     connection: ConnectionPublic
     user: UserSummary
-    session: Optional[SessionPublic]
+    session: SessionPublic | None
     progress: ProgressSummary
 
 
 class ScanResult(BaseModel):
     flagged: bool
     description: str
-    category: Optional[str] = None
+    category: str | None = None
     warning_active: bool
     points_awarded: int
     points_lost: int

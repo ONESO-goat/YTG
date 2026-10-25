@@ -35,9 +35,12 @@ class Config:
     jwt_algorithm = "HS256"
     jwt_expire_minutes = int(os.getenv("JWT_EXPIRE_MINUTES", str(60 * 24 * 7)))
 
-    # Admin-only endpoints (reward creation, manual point edits, daily settlement)
+    # Admin-only endpoints (reward creation, setting a user's points)
     # require this key in the X-Admin-Key header. Unset means they are disabled.
     admin_api_key = os.getenv("ADMIN_API_KEY", "")
+
+    rate_limits_enabled = os.getenv("RATE_LIMITS", "on").lower() != "off"
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
     cors_origins = _env_list(
         "CORS_ORIGINS",

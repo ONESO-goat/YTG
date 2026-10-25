@@ -29,9 +29,13 @@ codeforce.cpp
 *.suo
 *.ntvs*
 *.njsproj
-*/__pycache__/
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
 *.sln
 *.sw?
 *.env
 *.db
 .env
+.test.*

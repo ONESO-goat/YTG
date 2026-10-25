@@ -3,6 +3,7 @@
 A difference hash survives the small changes an unchanged screen still produces between
 captures (a blinking cursor, re-encoding noise), which an exact byte comparison would not.
 """
+
 import io
 
 from PIL import Image, UnidentifiedImageError

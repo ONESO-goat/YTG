@@ -18,8 +18,8 @@ def create_report(session:Session, guardian, content:str=""):
 
 def delete_report(session:Session, user_id: str, report_id:str)->tuple[bool, str]:
     """Delete reports to avoid cluter in alerts"""
-    if not session or report_id:
-        return False, "Guardian and content are required for reports"
+    if not session or not report_id:
+        return False, "Report id is required"
     
     report = session.get(GuardianReport, report_id)
     if not report:

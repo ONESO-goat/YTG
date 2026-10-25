@@ -25,16 +25,19 @@ export function sendWarningNotification(opts: {
   lastNotifiedAt = now;
 
   try {
-    const iconUrl = typeof window !== "undefined" ? `${window.location.origin}/favicon.ico` : undefined;
+    const iconUrl =
+      typeof window !== "undefined" ? `${window.location.origin}/favicon.ico` : undefined;
 
-    const n = new Notification(opts.title ?? "YTG — gentle nudge", {
+    // `renotify` is supported by browsers but missing from TypeScript's DOM types
+    const options: NotificationOptions & { renotify?: boolean } = {
       body: opts.body,
       icon: iconUrl,
       tag: "ytg-warning",
-      renotify: true,  
+      renotify: true,
       silent: false,
       requireInteraction: true, // Keeps it on screen until clicked or handled
-    });
+    };
+    const n = new Notification(opts.title ?? "YTG: a gentle nudge", options);
 
     n.onclick = () => {
       window.focus();
@@ -44,7 +47,6 @@ export function sendWarningNotification(opts: {
     console.error("OS Notification Error:", e);
   }
 }
-
 
 // Call this when 'harsh' mode triggers a flag
 export async function forcePictureInPictureWarning(warningText: string) {
@@ -80,9 +82,8 @@ export async function forcePictureInPictureWarning(warningText: string) {
   }
 }
 
-
 // In your notify helper or scan loop:
-let titleInterval: any = null;
+let titleInterval: ReturnType<typeof setInterval> | null = null;
 
 export function flashTabTitle(msg = "🚨 RETURN IMMEDIATELY!") {
   if (titleInterval) clearInterval(titleInterval);

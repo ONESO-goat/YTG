@@ -166,6 +166,7 @@ class GuardianReport(SQLModel, table=True):
     )
     
     updated_at: date = Field(default_factory=date.today)
+    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow, nullable=True)
 
 
 class Guardian(SQLModel, table=True):

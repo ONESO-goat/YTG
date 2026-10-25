@@ -117,18 +117,15 @@ class UserService:
         
         if username:
             user = session.exec(
-                select(User).where(User.username == username)
+                select(User).where(func.lower(User.username) == username.lower())
             ).first()
         else:
-            
             user = session.exec(
-                select(User).where(User.email == email)
+                select(User).where(func.lower(User.email) == email.lower())
             ).first()
-            if not user:
-                return None, "No user under this email"
 
         if not user or not verify_password(password, user.password):
-            return None, "Username or password are incorrect"
+            return None, "Username/email or password is incorrect"
         
         return user, "success"
     

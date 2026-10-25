@@ -4,6 +4,8 @@ from datetime import datetime
 from sqlalchemy.ext.mutable import MutableList
 from .helper import create_id
 
+DAILY_POINTS_LIMIT = 10000
+
 class GuardianSession(SQLModel, table=True):
     __tablename__ = "guardian_session"
 
@@ -14,6 +16,7 @@ class GuardianSession(SQLModel, table=True):
     active: bool = Field(default=False)
     
     warning_active: bool = Field(default=False)
+    warning_started_at: Optional[datetime] = Field(default=None, nullable=True)
     tracking_start_at: Optional[datetime] = Field(default=None)  # see #2
     target_duration_seconds: int = Field(default=0)
     
@@ -32,12 +35,11 @@ class GuardianSession(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     last_active_at: datetime = Field(default=None, nullable=True)
-    points_gain_daily_limit: int = Field(default=10000)
+    points_gain_daily_limit: int = Field(default=DAILY_POINTS_LIMIT)
     minute_timer: Optional[datetime] = Field(default=None, nullable=True)
     
-    previous_image_bytes: list[bytes] = Field(
-        default_factory=list, 
-        sa_column=Column(MutableList.as_mutable(JSON)))
+    # Perceptual hash of the last screenshot, see agent/frames.py
+    last_frame_hash: Optional[str] = Field(default=None, nullable=True)
     
     total_same_image_counter_for_whole_session: int = Field(default=0)
     same_image_counter: int = Field(default=0)
@@ -49,6 +51,7 @@ class GuardianSession(SQLModel, table=True):
     
     def reset(self):
         self.warning_active = False
+        self.warning_started_at = None
         self.tracking_start_at = None
         self.target_duration_seconds = 0
         
@@ -62,7 +65,8 @@ class GuardianSession(SQLModel, table=True):
         self.points_pending = 0
         
         self.last_scan_at = None
-        self.previous_image_bytes = []
+        self.last_frame_hash = None
+        self.points_gain_daily_limit = DAILY_POINTS_LIMIT
         self.same_image_counter = 0
         self.total_same_image_counter_for_whole_session = 0
         
@@ -79,7 +83,9 @@ class GuardianSession(SQLModel, table=True):
         self.active = False
         
     def check_for_streak(self):
-        if not self.last_active_at: return
+        if not self.last_active_at:
+            self.streak = 1
+            return
         
         today = datetime.today()
         time_distance = (today - self.last_active_at).total_seconds() / 3600

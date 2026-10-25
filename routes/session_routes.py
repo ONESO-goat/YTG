@@ -1,308 +1,133 @@
-# routes/session_routes.py
-
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from agent.bot import ScreenClassifier
 from fastapi_config import get_session
-from models.guardian_session import GuardianSession
-from services.guardian_services import GuardianServices
-from services.user_service import UserService
-from services.session_services import YTGSessionService
+from helpers.config import Config
+from helpers.security import get_current_user, require_admin
+from models.models import Guardian, User
+from models.schemas import ScanResult, SessionPublic
+from routes.auth import build_me
+from routes.deps import accessible_session, bad_request, can_be_monitored_by, forbidden
+from services.session_services import SessionInactiveError, YTGSessionService
 
-router = APIRouter(prefix="/sessions", tags=["Guardian Sessions"])
+router = APIRouter(prefix="/sessions", tags=["Monitoring Sessions"])
+dev_router = APIRouter(prefix="/dev", tags=["Development"])
 
 session_service = YTGSessionService()
-guardian_service = GuardianServices()
-user_service = UserService()
+classifier = ScreenClassifier(Config.ai_backend)
 
-# Instantiate the ScreenClassifier (can also be passed via dependency injection if needed)
-classifier = ScreenClassifier("ollama")
+MAX_SCAN_BYTES = 15 * 1024 * 1024
 
-
-# ------------------------------------------------------------------------------
-# Request Schemas
-# ------------------------------------------------------------------------------
-class CreateSessionRequest(BaseModel):
-    user_id: str
-    guardian_id: str
 
 class StartSessionRequest(BaseModel):
-    session_id: str = ""
-    user_id: str = ""
-    guardian_id: str = ""
-
-class AddEventRequest(BaseModel):
-    content: str
-    time_duration: int | None = None
+    # Defaults to the guardian the current user belongs to
+    guardian_id: str | None = None
 
 
-@router.get("/")
-def fetch_all_session(session:Session=Depends(get_session)):
-    return session_service.get_all_sessions(session=session)
+class SimulateRequest(BaseModel):
+    category: str = Field(default="hate speech", min_length=1, max_length=60)
+    scans: int = Field(default=8, ge=0, le=100)
 
 
-@router.post("/disprute/all")
-def fetch_end_of_the_day_disprutes(session:Session=Depends(get_session)):
-    amount = session_service.end_of_the_day_disprute_all(session)
-    return f"{amount} sessions successfully reset."
-# ------------------------------------------------------------------------------
-# Session Endpoints
-# ------------------------------------------------------------------------------
-@router.post("/create", status_code=status.HTTP_201_CREATED)
-def get_or_create_session(
-    payload: CreateSessionRequest,
-    session: Session = Depends(get_session),
-):
-    user = user_service.get_user_by_id(session, user_id=payload.user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User '{payload.user_id}' not found",
-        )
+def _monitoring_guardian(session: Session, user: User, guardian_id: str | None) -> Guardian:
+    if guardian_id is None:
+        me = build_me(session, user)
+        if not me.guardian:
+            raise bad_request("You aren't part of a guardian yet")
+        guardian_id = me.guardian.id
+    guardian = session.get(Guardian, guardian_id)
+    if not guardian or not can_be_monitored_by(session, guardian, user):
+        raise forbidden("You can't start a session under this guardian")
+    return guardian
 
-    guardian = guardian_service.get_guardian_by_id(
-        session, guardian_id=payload.guardian_id
-    )
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{payload.guardian_id}' not found",
-        )
 
-    ytg_session = session_service.get_or_create(
-        session=session, user=user, guardian=guardian
-    )
-    return ytg_session
+@router.get("/me", response_model=SessionPublic | None)
+def get_my_session(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return session_service.get_users_session(session=session, user=user)
 
-@router.post("/start", status_code=status.HTTP_200_OK)
+
+@router.post("/start", response_model=SessionPublic)
 def start_session(
     payload: StartSessionRequest,
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not any(payload.model_dump().values()):
-        raise HTTPException(
-            status_code=400, 
-            detail="User and guardian info or the session id are required"
-        )
-    if payload.session_id:
-        ytg_session, msg = session_service.get_YTGSession(session=session, session_id=payload.session_id)
-        if not ytg_session:
-            raise HTTPException(status_code=400, detail=msg)
-        ytg_session.end()
-        session.commit()
-        session.refresh(ytg_session)
-        return ytg_session
-    
-    user = user_service.get_user_by_id(session, user_id=payload.user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User '{payload.user_id}' not found",
-        )
-
-    guardian = guardian_service.get_guardian_by_id(
-        session, guardian_id=payload.guardian_id
-    )
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{payload.guardian_id}' not found",
-        )
-
-    ytg_session, was_created = session_service.get_or_create(
-        session=session, user=user, guardian=guardian
-    )
+    guardian = _monitoring_guardian(session, user, payload.guardian_id)
+    if not guardian.on:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Monitoring is turned off for this guardian")
+    ytg_session, _ = session_service.get_or_create(session=session, user=user, guardian=guardian)
     ytg_session.start()
     session.commit()
     session.refresh(ytg_session)
     return ytg_session
 
-@router.post("/stop", status_code=status.HTTP_200_OK)
-def fetch_stop_session(
-    payload: StartSessionRequest,
-    session: Session = Depends(get_session),
-):
-    if not any(payload.model_dump().values()):
-        raise HTTPException(
-                status_code=400, 
-                detail="User and guardian info or the session id are required"
-            )
-    if payload.session_id:
-        ytg_session, msg = session_service.get_YTGSession(session=session, session_id=payload.session_id)
-        if not ytg_session:
-            raise HTTPException(status_code=400, detail=msg)
-        ytg_session.end()
-        session.commit()
-        session.refresh(ytg_session)
-        return ytg_session
-    
-    user = user_service.get_user_by_id(session, user_id=payload.user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User '{payload.user_id}' not found",
-        )
 
-    guardian = guardian_service.get_guardian_by_id(
-        session, guardian_id=payload.guardian_id
-    )
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{payload.guardian_id}' not found",
-        )
-
-    ytg_session, was_created = session_service.get_or_create(
-        session=session, user=user, guardian=guardian
-    )
+@router.post("/{session_id}/stop", response_model=SessionPublic)
+def stop_session(session_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    ytg_session = accessible_session(session, session_id, user)
     ytg_session.end()
     session.commit()
     session.refresh(ytg_session)
     return ytg_session
 
-@router.get("/{session_id}")
-def get_session_by_id(session_id: str, session: Session = Depends(get_session)):
-    ytg_session, msg = session_service.get_YTGSession(
-        session=session, session_id=session_id
-    )
-    if not ytg_session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
-    return ytg_session
 
-@router.get("/user/get/{user_id}")
-def get_users_session(user_id: str, session: Session = Depends(get_session)):
-    user = user_service.get_user_by_id(
-        session=session, user_id=user_id
-    )
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"User under id '{user_id}' does not exist"
-        )
-    
-    users_sessions = session_service.get_users_session(session=session, user=user)
-    if not users_sessions:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"User has no session"
-        )
-    return users_sessions
+@router.get("/{session_id}", response_model=SessionPublic)
+def get_session_by_id(session_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return accessible_session(session, session_id, user)
 
 
-@router.get("/guardian/{guardian_id}")
-def get_sessions_by_guardian(
-    guardian_id: str,
-    session: Session = Depends(get_session),
-):
-    guardian = guardian_service.get_guardian_by_id(session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{guardian_id}' not found",
-        )
-
-    return session_service.get_all_sessions_under_guardian(
-        session=session, guardian=guardian
-    )
-
-
-@router.post("/{guardian_id}/on")
-def turn_guardian_on(guardian_id:str, session:Session=Depends(get_session)):
-    
-    new_sessions, mes = session_service.turn_on_guardian(session=session, guardian_id=guardian_id)
-    if new_sessions is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=mes)
-    return new_sessions
-
-@router.post("/{guardian_id}/off")
-def turn_guardian_off(guardian_id:str, session:Session=Depends(get_session)):
-    
-    successful, mes = session_service.turn_off_guardian(session=session, guardian_id=guardian_id)
-    if not successful:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=mes)
-    return {"message": mes}
-
-@router.delete("/{session_id}")
-def delete_session(session_id: str, session: Session = Depends(get_session)):
-    sess, msg = session_service.get_YTGSession(session=session, session_id=session_id)
-    if not sess:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
-
-    session_service.delete_session(session=session, session_id=session_id)
-    return {"message": f"Session '{session_id}' successfully deleted"}
-
-
-# ------------------------------------------------------------------------------
-# Image Processing & Event Flow
-# ------------------------------------------------------------------------------
-@router.post("/{session_id}/scan")
+@router.post("/{session_id}/scan", response_model=ScanResult)
 async def process_scan(
     session_id: str,
     file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    ytg_session, msg = session_service.get_YTGSession(
-        session=session, session_id=session_id
-    )
-    if not ytg_session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+    ytg_session = accessible_session(session, session_id, user)
+    if ytg_session.user_id != user.id:
+        raise forbidden("Only the monitored user can send scans")
 
-    image_bytes = await file.read()
+    image_bytes = await file.read(MAX_SCAN_BYTES + 1)
     if not image_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty"
-        )
+        raise bad_request("Uploaded file is empty")
+    if len(image_bytes) > MAX_SCAN_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Screenshot is too large")
 
     try:
-        scan_result = session_service.process_scan(
-            session=session,
-            classifier=classifier,
-            session_row=ytg_session,
-            image_bytes=image_bytes,
+        return session_service.process_scan(
+            session=session, classifier=classifier, session_row=ytg_session, image_bytes=image_bytes
         )
+    except SessionInactiveError as ex:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(ex))
     except ValueError as ex:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ex))
-
-    return scan_result
+        raise bad_request(str(ex))
 
 
-@router.post("/{session_id}/events")
-def add_event(
-    session_id: str,
-    payload: AddEventRequest,
-    session: Session = Depends(get_session),
-):
-    ytg_session, msg = session_service.get_YTGSession(
-        session=session, session_id=session_id
-    )
-    if not ytg_session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
-
-    session_service.add_event(
-        session=session,
-        sm_row=ytg_session,
-        content=payload.content,
-        time_duration=payload.time_duration,
-    )
-    return {"message": "Event added successfully", "events": ytg_session.events}
-
-
-@router.post("/{session_id}/flush")
-def flush_events(session_id: str, session: Session = Depends(get_session)):
-    ytg_session, msg = session_service.get_YTGSession(
-        session=session, session_id=session_id
-    )
-    if not ytg_session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
-
+@router.post("/settle", dependencies=[Depends(require_admin)])
+def settle_all_sessions(session: Session = Depends(get_session)):
+    """End-of-day settlement: turn each session's day into points and reset its counters."""
     try:
-        session_service.flush_wipe_events(session=session, sm_row=ytg_session)
+        count = session_service.end_of_the_day_disprute_all(session)
     except ValueError as ex:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ex))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(ex))
+    return {"message": f"{count} sessions settled"}
 
-    return {"message": "Events flushed and converted into reports successfully"}
+
+# ------------------------------------------------------------------------------
+# Development helpers, only available while the AI is stubbed
+# ------------------------------------------------------------------------------
+def _require_stub():
+    if classifier.backend != "stub":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not available with a real AI backend")
+
+
+@dev_router.post("/simulate", dependencies=[Depends(_require_stub)])
+def simulate_flagged_content(payload: SimulateRequest, user: User = Depends(get_current_user)):
+    """Make the next `scans` scans of the current user come back flagged. 0 clears it."""
+    if payload.scans == 0:
+        classifier.stub.clear(user.id)
+    else:
+        classifier.stub.simulate(user.id, payload.category, payload.scans)
+    return {"remaining": classifier.stub.remaining(user.id), "category": payload.category}

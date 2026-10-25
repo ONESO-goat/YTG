@@ -87,7 +87,8 @@ class GuardianServices:
         guardian = Guardian(
             name=name,
             owner_id=user.id,
-            guardian_type=guardian_type
+            guardian_type=guardian_type,
+            on=True,
 
         )
         session.add(guardian)

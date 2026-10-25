@@ -22,3 +22,22 @@ Social media is the hub where inequal teaching or opinions are expressed and sti
 * scroll on a platform (tiktok, twitter, instagram, etc)
 * If any harmful content is shown, like a trend of disrespectful comments or the user adding a poor comment themself, the bot appears and either tells them to move away or to avoid the content
 * If avoided, gain points (fake currency) that allows you to buy gift cards, passes, etc
+
+## Running locally
+
+Copy `.env.example` to `.env` and set `JWT_SECRET`. With `AI_BACKEND=stub`, no Ollama or Gemini is needed:
+every scan comes back clean, and the Session page has a developer panel to simulate flagged content.
+
+```bash
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/uvicorn main:app --reload --port 8000
+```
+
+```bash
+npm install
+npm run dev
+```
+
+The app runs at http://localhost:8080 and the API docs at http://localhost:8000/docs.
+
+Backend tests: `.venv/bin/python -m pytest tests`

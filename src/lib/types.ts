@@ -1,55 +1,96 @@
-// TypeScript interfaces mirroring the SQLModel definitions in /models.
-// These match the JSON shapes returned by the FastAPI backend under /routes.
+// Mirrors the response models in models/schemas.py.
 
-export type UserType = "parent" | "caregiver" | "individual" | "child";
-export type GuardianType = "family" | "personal";
+export type UserType = "caregiver" | "individual" | "dependent";
+export type GuardianType = "family" | "personal" | "dependent";
 export type StrictnessLevel = "weak" | "normal" | "harsh";
-export type RewardType = "gift_card";
+export type RewardType = "gift_card" | "streak_freeze";
 export type RelationshipType = "offspring" | "friend" | "supervisor" | "owner";
-export type AvailableLanguage =
-  | "en"
-  | "es"
-  | "fr"
-  | "de"
-  | "it"
-  | "pt"
-  | "nl"
-  | "ru"
-  | "zh"
-  | "ja"
-  | "ko";
 
-export interface CustomWarningMessages {
-  warning: string;
-  applause: string;
-}
-
-// models/models.py :: User
 export interface User {
   id: string;
   number_id: number;
   username: string;
   name: string;
   email: string;
-  password: string;
   user_type: UserType;
   currency: number;
 }
 
-// models/models.py :: UserSettings
-export interface UserSettings {
+export type UserSummary = Omit<User, "email">;
+
+export interface Guardian {
   id: string;
-  language: AvailableLanguage;
-  user_id: string | null;
+  name: string;
+  guardian_type: GuardianType;
+  owner_id: string | null;
+  on: boolean;
 }
 
-// models/models.py :: UserHistory
-export interface UserHistory {
+export interface Connection {
   id: string;
-  user_id: string | null;
+  guardian_id: string;
+  user_id: string;
+  user_name: string | null;
+  relationship_with_owner: RelationshipType;
 }
 
-// models/models.py :: Reward
+export interface MonitoringSession {
+  id: string;
+  user_id: string;
+  guardian_id: string;
+  active: boolean;
+  warning_active: boolean;
+  total_alerts: number;
+  amount_of_warnings_ignored: number;
+  amount_of_warnings_listened: number;
+  points_gain_daily_limit: number;
+  streak: number;
+  last_scan_at: string | null;
+  created_at: string;
+}
+
+export interface Me {
+  user: User;
+  guardian: Guardian | null;
+  is_guardian_owner: boolean;
+  connection: Connection | null;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
+export interface MemberOverview {
+  connection: Connection;
+  user: UserSummary;
+  session: MonitoringSession | null;
+}
+
+export interface GuardianSettings {
+  strictness: StrictnessLevel;
+  warning_message: string;
+  applause_message: string;
+  reports_enabled: boolean;
+  points_loss_enabled: boolean;
+  base_points_lost: number;
+}
+
+export interface Restrictions {
+  default: string[];
+  custom: string[];
+}
+
+export interface Report {
+  id: string;
+  content: string;
+  guardian_id: string | null;
+  send_to_id: string | null;
+  updated_at: string;
+  created_at: string | null;
+}
+
 export interface Reward {
   id: string;
   name: string;
@@ -58,93 +99,25 @@ export interface Reward {
   cost: number;
 }
 
-// models/models.py :: UserWonReward
-export interface UserWonReward {
+export interface OwnedReward {
   id: string;
   order_id: number;
-  user_id: string | null;
-  reward_id: string | null;
+  reward: Reward;
 }
 
-// models/models.py :: Guardian
-export interface Guardian {
-  id: string;
-  name: string;
-  guardian_type: GuardianType;
-  owner_id: string | null;
-  code: number | null;
-  on: boolean;
-}
-
-// models/models.py :: GuardianConnection
-export interface GuardianConnection {
-  id: string;
-  guardian_id: string;
-  user_id: string;
-  user_name: string;
-  relationship_with_owner: RelationshipType;
-}
-
-// models/models.py :: GuardianSettings
-export interface GuardianSettings {
-  id: string;
-  strictness: StrictnessLevel;
-  language: AvailableLanguage;
-  custom_warning_messages: CustomWarningMessages;
-  points_loss_enabled: boolean;
-  base_points_lost: number;
-  guardian_id: string | null;
-}
-
-// models/models.py :: GuardianRestrictions
-export interface GuardianRestrictions {
-  id: string;
-  guardian_id: string | null;
-  restrictions: string[];
-}
-
-// models/models.py :: GuardianReport
-export interface GuardianReport {
-  id: string;
-  content: string;
-  guardian_id: string | null;
-  send_to_id: string | null;
-}
-
-// models/models.py :: DeviceID
-export interface DeviceID {
-  id: string;
-  ip_address: string | null;
-  user_id: string | null;
-}
-
-// models/models.py :: RecentActivity
-export interface RecentActivity {
-  id: string;
-  user_id: string | null;
-  activities: unknown[];
-}
-
-// models/guardian_session.py :: GuardianSession
-export interface GuardianSession {
-  id: string;
-  user_id: string;
-  guardian_id: string;
-  warning_active: boolean;
-  tracking_start_at: string | null;
-  target_duration_seconds: number;
-  total_alerts: number;
-  penalized_this_episode: boolean;
-  events: unknown[];
-  points_pending: number;
-  last_scan_at: string | null;
-  created_at: string;
-}
-
-// Response shape from POST /sessions/{session_id}/scan
 export interface ScanResult {
   flagged: boolean;
   description: string;
+  category: string | null;
   warning_active: boolean;
-  points_awarded: boolean;
+  points_awarded: number;
+  points_lost: number;
+  currency: number;
+  shutdown: boolean;
+  analysis_failed: boolean;
+}
+
+export interface Health {
+  status: string;
+  ai_backend: "stub" | "ollama" | "gemini";
 }

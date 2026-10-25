@@ -56,13 +56,8 @@ class Gameify:
         if not self.can_afford(user, reward):
             return False, f"Cannot affrod item"
         
-        won_reward = UserWonReward(
-            user=user,
-            reward=reward
-        )
+        session.add(UserWonReward(user_id=user.id, reward_id=reward.id))
         self.remove_points(session=session, user=user, amount=reward.cost)
-        session.add(won_reward)
-        session.commit()
         return True, f"{user.username} bought {reward.name} for {reward.cost}"
         
     def compute_daily_settlement(

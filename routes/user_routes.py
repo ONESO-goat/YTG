@@ -1,16 +1,17 @@
-# routes/user_routes.py
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from fastapi_config import get_session
+from helpers.security import get_current_user
+from models.models import User, UserType
+from models.schemas import UserPublic, UserSummary
+from routes.deps import bad_request, not_found
+from services.helpers import verify_password
 from services.user_service import UserService
-from services.guardian_services import GuardianServices
 
 router = APIRouter(prefix="/users", tags=["Users"])
 user_service = UserService()
-guardian_service = GuardianServices()
 
 
 class ChangeNameRequest(BaseModel):
@@ -18,112 +19,57 @@ class ChangeNameRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
+    current_password: str
     new_password: str
 
 
-@router.get("/")
-def get_all_users(session: Session = Depends(get_session)):
-    return user_service.get_all_users(session)
-
-
-@router.get("/{user_id}")
-def get_user_by_id(user_id: str, session: Session = Depends(get_session)):
-    user = user_service.get_user_by_id(session, user_id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"User with ID '{user_id}' does not exist"
-        )
+@router.get("/me", response_model=UserPublic)
+def get_me(user: User = Depends(get_current_user)):
     return user
 
-@router.get("/number/{user_number_id}")
-def get_user_by_number_id(user_number_id: int, session: Session = Depends(get_session)):
-    user = user_service.get_user_by_number_id(session, number_id=user_number_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"User with number ID '{user_number_id}' does not exist"
-        )
-    return user
 
-@router.patch("/{user_id}/name")
+@router.patch("/me/name", response_model=UserPublic)
 def change_name(
-    user_id: str, 
-    payload: ChangeNameRequest, 
-    session: Session = Depends(get_session)
+    payload: ChangeNameRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ):
-    user = user_service.get_user_by_id(session, user_id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"User with ID '{user_id}' does not exist"
-        )
-
-    updated_user, msg = user_service.change_name(
-        session=session, user=user, new_name=payload.new_name
-    )
+    updated_user, msg = user_service.change_name(session=session, user=user, new_name=payload.new_name)
     if not updated_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
-
+        raise bad_request(msg)
     return updated_user
 
 
-@router.put("/{user_id}/password")
+@router.put("/me/password", response_model=UserPublic)
 def change_password(
-    user_id: str, 
-    payload: ChangePasswordRequest, 
-    session: Session = Depends(get_session)
+    payload: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ):
-    user = user_service.get_user_by_id(session, user_id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"User with ID '{user_id}' does not exist"
-        )
-
-    updated_user, msg = user_service.change_password(
-        session=session, user=user, new_password=payload.new_password
-    )
+    if not verify_password(payload.current_password, user.password):
+        raise bad_request("Current password is incorrect")
+    updated_user, msg = user_service.change_password(session=session, user=user, new_password=payload.new_password)
     if not updated_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
-
+        raise bad_request(msg)
     return updated_user
 
 
-@router.delete("/{user_id}")
-def delete_user(user_id: str, session: Session = Depends(get_session)):
-    user = user_service.get_user_by_id(session, user_id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"User with ID '{user_id}' does not exist"
-        )
-
+@router.delete("/me")
+def delete_me(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     success, msg = user_service.delete_user(session=session, user=user)
     if not success:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
-
-    return {"message": f"User '{user_id}' successfully deleted"}
-
-
-@router.get("/guardian/{guardian_id}")
-def get_users_by_guardian(guardian_id: str, session: Session = Depends(get_session)):
-    users, msg = user_service.get_users_with_guardian_connection(
-        session=session, guardian_id=guardian_id
-    )
-    if users is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
-    return users
+        raise bad_request(msg)
+    return {"message": "Account deleted"}
 
 
-@router.get("/get/user/connection/{user_id}")
-def fetch_user_connection(
-    user_id:str,
-    session:Session=Depends(get_session)
+@router.get("/number/{user_number_id}", response_model=UserSummary)
+def get_user_by_number_id(
+    user_number_id: int,
+    _: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ):
-    user = user_service.get_user_by_id(session=session, user_id=user_id)
-    if not user:
-        raise HTTPException(status_code=400, detail=f"User of id '{user_id}' does not exist.")
-    connection, msg = guardian_service.get_user_connection_if_any(session=session, user=user)
-    return connection
-
+    """Look up someone by the ID they shared, so a guardian owner can confirm before connecting them."""
+    user = user_service.get_user_by_number_id(session, number_id=user_number_id)
+    if not user or user.user_type != UserType.DEPENDENT:
+        raise not_found(f"No dependent account with ID {user_number_id}")
+    return user

@@ -1,358 +1,304 @@
-# routes/guardians_routes.py
-
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from fastapi_config import get_session
-from models.models import GuardianType, UserType, RelationshipType
+from helpers.security import get_current_user
+from models.guardian_session import GuardianSession
+from models.models import GuardianReport, GuardianType, RelationshipType, StrictnessLevel, User, UserType
+from models.schemas import (
+    ConnectionPublic,
+    GuardianPublic,
+    MemberOverview,
+    ReportPublic,
+    SessionPublic,
+    UserSummary,
+)
+from routes.deps import accessible_guardian, bad_request, not_found, owned_guardian
 from services.guardian_services import GuardianServices
+from services.session_services import YTGSessionService
 from services.user_service import UserService
 
 router = APIRouter(prefix="/guardians", tags=["Guardians"])
 guardian_service = GuardianServices()
+session_service = YTGSessionService()
 user_service = UserService()
 
 
-# ------------------------------------------------------------------------------
-# Request Schemas
-# ------------------------------------------------------------------------------
 class CreateGuardianRequest(BaseModel):
-    owner_id: str
     name: str = Field(..., min_length=1, max_length=120)
-    guardian_type: GuardianType = GuardianType.PERSONAL
 
 
-class AddConnectionRequest(BaseModel):
-    user_id_or_username: str
-    relationship: RelationshipType
-
-class DeleteReportRequest(BaseModel):
-    user_id:str
-class AddConnectionRequestNumberId(BaseModel):
+class AddMemberRequest(BaseModel):
     user_number_id: int
-    relationship: RelationshipType
+    relationship: RelationshipType = RelationshipType.OFFSPRING
 
-class ChangeCodeRequest(BaseModel):
-    code: int
 
-class NewRestriction(BaseModel):
-    restriction: str
+class RestrictionRequest(BaseModel):
+    restriction: str = Field(..., min_length=2, max_length=60)
+
+
 class UpdateGuardianSettingsRequest(BaseModel):
     warning_message: str | None = None
     applause_message: str | None = None
-    strictness: str | None = None
+    strictness: StrictnessLevel | None = None
     reports_enabled: bool | None = None
+    points_loss_enabled: bool | None = None
+    base_points_lost: int | None = Field(default=None, ge=0, le=1000)
+
+
+class GuardianSettingsPublic(BaseModel):
+    strictness: StrictnessLevel
+    warning_message: str
+    applause_message: str
+    reports_enabled: bool
     points_loss_enabled: bool
     base_points_lost: int
 
 
-# ------------------------------------------------------------------------------
-# Guardian Management Endpoints
-# ------------------------------------------------------------------------------
-@router.get("/all")
-def get_all_guardians(session: Session = Depends(get_session)):
-    return guardian_service.get_all_guardians(session)
+class RestrictionsPublic(BaseModel):
+    default: list[str]
+    custom: list[str]
 
 
-@router.post("/create", status_code=status.HTTP_201_CREATED)
-def create_guardian(
-    payload: CreateGuardianRequest, 
-    session: Session = Depends(get_session)
-):
-    user = user_service.get_user_by_id(session, user_id=payload.owner_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"User '{payload.owner_id}' not found"
-        )
-
-    guardian, msg = guardian_service.create_guardian(
-        session=session,
-        user=user,
-        name=payload.name,
-        guardian_type=payload.guardian_type,
+def _settings_public(settings) -> GuardianSettingsPublic:
+    messages = settings.custom_warning_messages or {}
+    return GuardianSettingsPublic(
+        strictness=StrictnessLevel(settings.strictness),
+        warning_message=messages.get("warning", ""),
+        applause_message=messages.get("applause", ""),
+        reports_enabled=settings.reports_enabled,
+        points_loss_enabled=settings.points_loss_enabled,
+        base_points_lost=settings.base_points_lost,
     )
 
-    if not guardian:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
 
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=GuardianPublic)
+def create_guardian(
+    payload: CreateGuardianRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    # Caregivers watch over a family; individuals watch over themselves
+    guardian_type = GuardianType.FAMILY if user.user_type == UserType.CAREGIVER else GuardianType.PERSONAL
+    guardian, msg = guardian_service.create_guardian(
+        session=session, user=user, name=payload.name.strip(), guardian_type=guardian_type
+    )
+    if not guardian:
+        raise bad_request(msg)
     return guardian
 
 
-@router.get("/{guardian_id}")
-def get_guardian(guardian_id: str, session: Session = Depends(get_session)):
-    guardian = guardian_service.get_guardian_by_id(session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{guardian_id}' does not exist: {guardian.owner_id if guardian else 'actually isnt there'}",
-        )
-    return guardian
-
-
-@router.get("/owner/{user_id}")
-def get_guardian_by_owner(user_id: str, session: Session = Depends(get_session)):
-    user = user_service.get_user_by_id(session, user_id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"User '{user_id}' not found"
-        )
-
-    guardian = guardian_service.get_guardian_by_owner(session, user=user)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No Guardian found for owner '{user_id}'",
-        )
-    return guardian
+@router.get("/{guardian_id}", response_model=GuardianPublic)
+def get_guardian(guardian_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return accessible_guardian(session, guardian_id, user)
 
 
 @router.delete("/{guardian_id}")
-def delete_guardian(guardian_id: str, session: Session = Depends(get_session)):
-    success, msg = guardian_service.delete_guardian(
-        session=session, guardian_id=guardian_id
-    )
+def delete_guardian(guardian_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    guardian = owned_guardian(session, guardian_id, user)
+    for sess in session_service.get_all_sessions_under_guardian(session, guardian):
+        session.delete(sess)
+    success, msg = guardian_service.delete_guardian(session=session, guardian_id=guardian.id)
     if not success:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
+        raise bad_request(msg)
+    return {"message": "Guardian deleted"}
 
-    return {"message": f"Guardian '{guardian_id}' successfully deleted"}
+
+@router.post("/{guardian_id}/on", response_model=GuardianPublic)
+def turn_guardian_on(guardian_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    guardian = owned_guardian(session, guardian_id, user)
+    if not guardian.on:
+        sessions, msg = session_service.turn_on_guardian(session=session, guardian_id=guardian.id)
+        if sessions is None:
+            raise bad_request(msg)
+    session.refresh(guardian)
+    return guardian
+
+
+@router.post("/{guardian_id}/off", response_model=GuardianPublic)
+def turn_guardian_off(guardian_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    guardian = owned_guardian(session, guardian_id, user)
+    if guardian.on:
+        success, msg = session_service.turn_off_guardian(session=session, guardian_id=guardian.id)
+        if not success:
+            raise bad_request(msg)
+    session.refresh(guardian)
+    return guardian
 
 
 # ------------------------------------------------------------------------------
-# Connections Endpoints
+# Members (connections)
 # ------------------------------------------------------------------------------
-@router.get("/{guardian_id}/connections")
-def get_guardian_connections(
-    guardian_id: str, 
-    session: Session = Depends(get_session)
-):
-    guardian = guardian_service.get_guardian_by_id(session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{guardian_id}' does not exist",
+@router.get("/{guardian_id}/members", response_model=list[MemberOverview])
+def list_members(guardian_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    guardian = owned_guardian(session, guardian_id, user)
+    members = []
+    for connection in guardian_service.get_all_connections(session, guardian=guardian):
+        member = session.get(User, connection.user_id)
+        if not member:
+            continue
+        member_session = session.exec(
+            select(GuardianSession).where(
+                GuardianSession.user_id == member.id, GuardianSession.guardian_id == guardian.id
+            )
+        ).first()
+        members.append(
+            MemberOverview(
+                connection=ConnectionPublic.model_validate(connection),
+                user=UserSummary.model_validate(member),
+                session=SessionPublic.model_validate(member_session) if member_session else None,
+            )
         )
+    return members
 
-    return guardian_service.get_all_connections(session, guardian=guardian)
 
-
-@router.post("/{guardian_id}/connections/add", status_code=status.HTTP_201_CREATED)
-def add_connection(
+@router.post("/{guardian_id}/members", status_code=status.HTTP_201_CREATED, response_model=ConnectionPublic)
+def add_member(
     guardian_id: str,
-    payload: AddConnectionRequestNumberId,
+    payload: AddMemberRequest,
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    guardian = guardian_service.get_guardian_by_id(session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{guardian_id}' does not exist",
-        )
-    
-    user = user_service.get_user_by_number_id(session=session, number_id=payload.user_number_id)
-    # user = user_service.get_user_by_username(session, username=payload.user_number_id)
-    # if not user:
-    #     user = user_service.get_user_by_id(session, user_id=payload.user_id_or_username)
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User '{payload.user_number_id}' does not exist",
-        )
+    guardian = owned_guardian(session, guardian_id, user)
+    member = user_service.get_user_by_number_id(session=session, number_id=payload.user_number_id)
+    if not member or member.user_type != UserType.DEPENDENT:
+        raise not_found(f"No dependent account with ID {payload.user_number_id}")
+    existing, _ = guardian_service.get_user_connection_if_any(session=session, user=member)
+    if existing and existing.guardian_id != guardian.id:
+        raise bad_request("This dependent is already connected to another guardian")
 
     connection, msg = guardian_service.add_connection(
-        session=session,
-        guardian=guardian,
-        user=user,
-        connection_type=payload.relationship,
+        session=session, guardian=guardian, user=member, connection_type=payload.relationship
     )
     if not connection:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
-
+        raise bad_request(msg)
     return connection
 
 
-@router.delete("/{guardian_id}/connections/{user_id}")
-def remove_connection(
-    guardian_id: str, 
-    user_id: str|int, 
-    session: Session = Depends(get_session)
-):
-    guardian = guardian_service.get_guardian_by_id(session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{guardian_id}' does not exist",
-        )
-
-    if isinstance(user_id, int):
-        user = user_service.get_user_by_number_id(session, number_id=user_id)
-    else:
-        user = user_service.get_user_by_id(session, user_id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User '{user_id}' does not exist",
-        )
-
-    success, msg = guardian_service.remove_connection(
-        session=session, guardian=guardian, user=user
-    )
-    if not success:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
-
-    return {"message": f"Connection between Guardian '{guardian_id}' and user '{user_id}' removed"}
-
-
-# ------------------------------------------------------------------------------
-# Settings & Security Endpoints
-# ------------------------------------------------------------------------------
-@router.put("/{guardian_id}/code")
-def change_guardian_code(
+@router.delete("/{guardian_id}/members/{user_id}")
+def remove_member(
     guardian_id: str,
-    payload: ChangeCodeRequest,
+    user_id: str,
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    guardian = guardian_service.get_guardian_by_id(session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{guardian_id}' does not exist",
-        )
+    guardian = owned_guardian(session, guardian_id, user)
+    member = session.get(User, user_id)
+    if not member:
+        raise not_found(f"User '{user_id}' does not exist")
+    success, msg = guardian_service.remove_connection(session=session, guardian=guardian, user=member)
+    if not success:
+        raise bad_request(msg)
+    member_session = session.exec(
+        select(GuardianSession).where(GuardianSession.user_id == member.id, GuardianSession.guardian_id == guardian.id)
+    ).first()
+    if member_session:
+        session.delete(member_session)
+        session.commit()
+    return {"message": f"{member.name} was removed"}
 
-    updated_guardian, msg = guardian_service.change_code(
-        session=session, guardian=guardian, code=payload.code
-    )
-    if not updated_guardian:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
 
-    return updated_guardian
-
-
-@router.post("/{guardian_id}/restrictions/remove")
-def remove_restriction(
-    guardian_id:str,
-    payload: NewRestriction,
-    session:Session=Depends(get_session)
-):
-    restrictions, mes = guardian_service.remove_from_guardian_restrictions(session=session,
-                                                  guardian_id=guardian_id,
-                                                  restriction=payload.restriction)
-    if restrictions is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=mes)
-    return restrictions
-
-@router.post("/{guardian_id}/restrictions/add")
-def add_restriction(
-    guardian_id:str,
-    payload: NewRestriction,
-    session:Session=Depends(get_session)
-):
-    restrictions, mes = guardian_service.add_to_guardian_restrictions(session=session,
-                                                  guardian_id=guardian_id,
-                                                  restriction=payload.restriction)
-    if restrictions is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=mes)
-    return restrictions
-
-@router.get("/{guardian_id}/settings")
-def get_guardian_settings(
-    guardian_id: str, 
-    session: Session = Depends(get_session)
-):
-    guardian = guardian_service.get_guardian_by_id(session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{guardian_id}' does not exist",
-        )
-
-    settings, msg = guardian_service.get_or_create_guardian_settings(
-        session=session, guardian=guardian
-    )
+# ------------------------------------------------------------------------------
+# Settings & restrictions
+# ------------------------------------------------------------------------------
+@router.get("/{guardian_id}/settings", response_model=GuardianSettingsPublic)
+def get_settings(guardian_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    guardian = accessible_guardian(session, guardian_id, user)
+    settings, msg = guardian_service.get_or_create_guardian_settings(session=session, guardian=guardian)
     if not settings:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
+        raise bad_request(msg)
+    return _settings_public(settings)
 
-    return settings
 
-
-@router.patch("/{guardian_id}/settings/update")
-def update_guardian_settings(
+@router.patch("/{guardian_id}/settings", response_model=GuardianSettingsPublic)
+def update_settings(
     guardian_id: str,
     payload: UpdateGuardianSettingsRequest,
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    guardian = guardian_service.get_guardian_by_id(session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Guardian '{guardian_id}' does not exist",
-        )
-
+    guardian = owned_guardian(session, guardian_id, user)
     settings, msg = guardian_service.update_guardian_settings(
         session=session,
         guardian=guardian,
         warning_message=payload.warning_message,
         applause_message=payload.applause_message,
-        strictness=payload.strictness,
+        strictness=payload.strictness.value if payload.strictness else None,
         apply_penalty=payload.points_loss_enabled,
         enable_reports=payload.reports_enabled,
-        amount_of_points_to_lose=payload.base_points_lost
+        amount_of_points_to_lose=payload.base_points_lost,
     )
     if not settings:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
+        raise bad_request(msg)
+    return _settings_public(settings)
 
-    return settings
 
-
-@router.get("/restrictions/get/{guardian_id}")
-def fetch_restrictions(guardian_id:str, session:Session=Depends(get_session)):
-    guardian = guardian_service.get_guardian_by_id(session=session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Guardian '{guardian_id}' does not exist",
-            )
-    restrictions, mes = guardian_service.get_or_create_guardian_restrictions(session=session, guardian=guardian)
+@router.get("/{guardian_id}/restrictions", response_model=RestrictionsPublic)
+def get_restrictions(guardian_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    guardian = accessible_guardian(session, guardian_id, user)
+    restrictions, msg = guardian_service.get_or_create_guardian_restrictions(session=session, guardian=guardian)
     if not restrictions:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=mes)
-    
-    return restrictions.restrictions
+        raise bad_request(msg)
+    return RestrictionsPublic(default=list(restrictions.default_restrictions), custom=list(restrictions.restrictions))
 
-@router.get("/reports/{given_id}")
-def get_reports(given_id:str, session:Session=Depends(get_session)):
-    reports, mes = guardian_service.get_reports_by_guardian_id(session=session, guardian_id=given_id)
-    if reports is None:
-        reports, mes = guardian_service.get_reports_by_owner_id(session=session, owner_id=given_id)
-        if reports is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"The given id '{given_id}' is not associated with any guardian or user. DETAILS: {mes}")
-    return reports
 
-@router.get("/reports/get/{report_id}")
-def fetch_report(report_id:str, session:Session=Depends(get_session)):
-    report, mes = guardian_service.get_report(session=session, report_id=report_id)
-    if not report:
-        raise HTTPException(
-            status_code=404,
-            detail=mes
-        )
-    return report
+@router.post("/{guardian_id}/restrictions", response_model=RestrictionsPublic)
+def add_restriction(
+    guardian_id: str,
+    payload: RestrictionRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    guardian = owned_guardian(session, guardian_id, user)
+    custom, msg = guardian_service.add_to_guardian_restrictions(
+        session=session, guardian_id=guardian.id, restriction=payload.restriction.strip().lower()
+    )
+    if custom is None:
+        raise bad_request(msg)
+    return get_restrictions(guardian_id, user, session)
 
-@router.delete("/reports/delete/{report_id}")
-def fetch_delete_report(report_id:str, user_making_request:DeleteReportRequest, session:Session=Depends(get_session)):
-    user = user_service.get_user_by_id(session=session, user_id=user_making_request.user_id)
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail=f"User of id '{user_making_request.user_id}' does not exist"
-        )
-    success, mes = guardian_service.delete_report_by_id(session=session, user_making_request_id=user.id, report_id=report_id)
-    if not success:
-        raise HTTPException(
-            status_code=400,
-            detail=mes
-        )
-    return "Successfully removed report"
+
+@router.delete("/{guardian_id}/restrictions", response_model=RestrictionsPublic)
+def remove_restriction(
+    guardian_id: str,
+    restriction: str = Query(..., min_length=1),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    guardian = owned_guardian(session, guardian_id, user)
+    custom, msg = guardian_service.remove_from_guardian_restrictions(
+        session=session, guardian_id=guardian.id, restriction=restriction
+    )
+    if custom is None:
+        raise bad_request(msg)
+    return get_restrictions(guardian_id, user, session)
+
+
+# ------------------------------------------------------------------------------
+# Reports
+# ------------------------------------------------------------------------------
+@router.get("/{guardian_id}/reports", response_model=list[ReportPublic])
+def list_reports(guardian_id: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    guardian = owned_guardian(session, guardian_id, user)
+    return session.exec(
+        select(GuardianReport)
+        .where(GuardianReport.guardian_id == guardian.id)
+        .order_by(GuardianReport.created_at.desc(), GuardianReport.updated_at.desc())  # type: ignore[union-attr]
+    ).all()
+
+
+@router.delete("/{guardian_id}/reports/{report_id}")
+def delete_report(
+    guardian_id: str,
+    report_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    guardian = owned_guardian(session, guardian_id, user)
+    report = session.get(GuardianReport, report_id)
+    if not report or report.guardian_id != guardian.id:
+        raise not_found("Report not found")
+    session.delete(report)
+    session.commit()
+    return {"message": "Report removed"}

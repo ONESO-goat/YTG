@@ -18,7 +18,7 @@ class Engine:
         self.ollama_model = Config.ollama_qwen_2_dot_5
         self.description_reader_ollama_model = Config.ollama_guard
         self.backend = ai_to_use
-        self.ollama_client = ollama.Client(host='http://172.26.144.1:11434')
+        self.ollama_client = ollama.Client(host=Config.ollama_host)
 
         if self.backend == 'gemini' and api_key:
             # Use Gemini

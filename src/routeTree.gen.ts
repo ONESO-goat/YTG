@@ -10,19 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as ShopRouteImport } from './routes/shop'
-import { Route as GuardianCreateRouteImport } from './routes/guardian/create'
-import { Route as GuardianDashboardRouteImport } from './routes/guardian/dashboard'
-import { Route as GuardianMonitorRouteImport } from './routes/guardian/monitor'
-import { Route as GuardianReportsRouteImport } from './routes/guardian/reports'
-import { Route as GuardianSettingsRouteImport } from './routes/guardian/settings'
-import { Route as GuardianWaiting_for_connectionRouteImport } from './routes/guardian/waiting_for_connection'
+import { Route as AuthedShellRouteImport } from './routes/_authed/_shell'
+import { Route as AuthedOnboardingRouteImport } from './routes/_authed/onboarding'
+import { Route as AuthedWaitingRouteImport } from './routes/_authed/waiting'
+import { Route as AuthedShellAccountRouteImport } from './routes/_authed/_shell/account'
+import { Route as AuthedShellDashboardRouteImport } from './routes/_authed/_shell/dashboard'
+import { Route as AuthedShellMonitorRouteImport } from './routes/_authed/_shell/monitor'
+import { Route as AuthedShellReportsRouteImport } from './routes/_authed/_shell/reports'
+import { Route as AuthedShellSettingsRouteImport } from './routes/_authed/_shell/settings'
+import { Route as AuthedShellShopRouteImport } from './routes/_authed/_shell/shop'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -30,84 +36,89 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OnboardingRoute = OnboardingRouteImport.update({
+const AuthedShellRoute = AuthedShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedOnboardingRoute = AuthedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any)
-const ShopRoute = ShopRouteImport.update({
+const AuthedWaitingRoute = AuthedWaitingRouteImport.update({
+  id: '/waiting',
+  path: '/waiting',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedShellAccountRoute = AuthedShellAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellDashboardRoute = AuthedShellDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellMonitorRoute = AuthedShellMonitorRouteImport.update({
+  id: '/monitor',
+  path: '/monitor',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellReportsRoute = AuthedShellReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellSettingsRoute = AuthedShellSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellShopRoute = AuthedShellShopRouteImport.update({
   id: '/shop',
   path: '/shop',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedShellRoute,
 } as any)
-const GuardianCreateRoute = GuardianCreateRouteImport.update({
-  id: '/guardian/create',
-  path: '/guardian/create',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuardianDashboardRoute = GuardianDashboardRouteImport.update({
-  id: '/guardian/dashboard',
-  path: '/guardian/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuardianMonitorRoute = GuardianMonitorRouteImport.update({
-  id: '/guardian/monitor',
-  path: '/guardian/monitor',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuardianReportsRoute = GuardianReportsRouteImport.update({
-  id: '/guardian/reports',
-  path: '/guardian/reports',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuardianSettingsRoute = GuardianSettingsRouteImport.update({
-  id: '/guardian/settings',
-  path: '/guardian/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuardianWaiting_for_connectionRoute =
-  GuardianWaiting_for_connectionRouteImport.update({
-    id: '/guardian/waiting_for_connection',
-    path: '/guardian/waiting_for_connection',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/onboarding': typeof OnboardingRoute
-  '/shop': typeof ShopRoute
-  '/guardian/create': typeof GuardianCreateRoute
-  '/guardian/dashboard': typeof GuardianDashboardRoute
-  '/guardian/monitor': typeof GuardianMonitorRoute
-  '/guardian/reports': typeof GuardianReportsRoute
-  '/guardian/settings': typeof GuardianSettingsRoute
-  '/guardian/waiting_for_connection': typeof GuardianWaiting_for_connectionRoute
+  '/onboarding': typeof AuthedOnboardingRoute
+  '/waiting': typeof AuthedWaitingRoute
+  '/account': typeof AuthedShellAccountRoute
+  '/dashboard': typeof AuthedShellDashboardRoute
+  '/monitor': typeof AuthedShellMonitorRoute
+  '/reports': typeof AuthedShellReportsRoute
+  '/settings': typeof AuthedShellSettingsRoute
+  '/shop': typeof AuthedShellShopRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/onboarding': typeof OnboardingRoute
-  '/shop': typeof ShopRoute
-  '/guardian/create': typeof GuardianCreateRoute
-  '/guardian/dashboard': typeof GuardianDashboardRoute
-  '/guardian/monitor': typeof GuardianMonitorRoute
-  '/guardian/reports': typeof GuardianReportsRoute
-  '/guardian/settings': typeof GuardianSettingsRoute
-  '/guardian/waiting_for_connection': typeof GuardianWaiting_for_connectionRoute
+  '/onboarding': typeof AuthedOnboardingRoute
+  '/waiting': typeof AuthedWaitingRoute
+  '/account': typeof AuthedShellAccountRoute
+  '/dashboard': typeof AuthedShellDashboardRoute
+  '/monitor': typeof AuthedShellMonitorRoute
+  '/reports': typeof AuthedShellReportsRoute
+  '/settings': typeof AuthedShellSettingsRoute
+  '/shop': typeof AuthedShellShopRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authed': typeof AuthedRouteWithChildren
   '/auth': typeof AuthRoute
-  '/onboarding': typeof OnboardingRoute
-  '/shop': typeof ShopRoute
-  '/guardian/create': typeof GuardianCreateRoute
-  '/guardian/dashboard': typeof GuardianDashboardRoute
-  '/guardian/monitor': typeof GuardianMonitorRoute
-  '/guardian/reports': typeof GuardianReportsRoute
-  '/guardian/settings': typeof GuardianSettingsRoute
-  '/guardian/waiting_for_connection': typeof GuardianWaiting_for_connectionRoute
+  '/_authed/_shell': typeof AuthedShellRouteWithChildren
+  '/_authed/onboarding': typeof AuthedOnboardingRoute
+  '/_authed/waiting': typeof AuthedWaitingRoute
+  '/_authed/_shell/account': typeof AuthedShellAccountRoute
+  '/_authed/_shell/dashboard': typeof AuthedShellDashboardRoute
+  '/_authed/_shell/monitor': typeof AuthedShellMonitorRoute
+  '/_authed/_shell/reports': typeof AuthedShellReportsRoute
+  '/_authed/_shell/settings': typeof AuthedShellSettingsRoute
+  '/_authed/_shell/shop': typeof AuthedShellShopRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -115,50 +126,45 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/onboarding'
+    | '/waiting'
+    | '/account'
+    | '/dashboard'
+    | '/monitor'
+    | '/reports'
+    | '/settings'
     | '/shop'
-    | '/guardian/create'
-    | '/guardian/dashboard'
-    | '/guardian/monitor'
-    | '/guardian/reports'
-    | '/guardian/settings'
-    | '/guardian/waiting_for_connection'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/onboarding'
+    | '/waiting'
+    | '/account'
+    | '/dashboard'
+    | '/monitor'
+    | '/reports'
+    | '/settings'
     | '/shop'
-    | '/guardian/create'
-    | '/guardian/dashboard'
-    | '/guardian/monitor'
-    | '/guardian/reports'
-    | '/guardian/settings'
-    | '/guardian/waiting_for_connection'
   id:
     | '__root__'
     | '/'
+    | '/_authed'
     | '/auth'
-    | '/onboarding'
-    | '/shop'
-    | '/guardian/create'
-    | '/guardian/dashboard'
-    | '/guardian/monitor'
-    | '/guardian/reports'
-    | '/guardian/settings'
-    | '/guardian/waiting_for_connection'
+    | '/_authed/_shell'
+    | '/_authed/onboarding'
+    | '/_authed/waiting'
+    | '/_authed/_shell/account'
+    | '/_authed/_shell/dashboard'
+    | '/_authed/_shell/monitor'
+    | '/_authed/_shell/reports'
+    | '/_authed/_shell/settings'
+    | '/_authed/_shell/shop'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthedRoute: typeof AuthedRouteWithChildren
   AuthRoute: typeof AuthRoute
-  OnboardingRoute: typeof OnboardingRoute
-  ShopRoute: typeof ShopRoute
-  GuardianCreateRoute: typeof GuardianCreateRoute
-  GuardianDashboardRoute: typeof GuardianDashboardRoute
-  GuardianMonitorRoute: typeof GuardianMonitorRoute
-  GuardianReportsRoute: typeof GuardianReportsRoute
-  GuardianSettingsRoute: typeof GuardianSettingsRoute
-  GuardianWaiting_for_connectionRoute: typeof GuardianWaiting_for_connectionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -170,6 +176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -177,87 +190,114 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/onboarding': {
-      id: '/onboarding'
+    '/_authed/_shell': {
+      id: '/_authed/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedShellRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/onboarding': {
+      id: '/_authed/onboarding'
       path: '/onboarding'
       fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedOnboardingRouteImport
+      parentRoute: typeof AuthedRoute
     }
-    '/shop': {
-      id: '/shop'
+    '/_authed/waiting': {
+      id: '/_authed/waiting'
+      path: '/waiting'
+      fullPath: '/waiting'
+      preLoaderRoute: typeof AuthedWaitingRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/_shell/account': {
+      id: '/_authed/_shell/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthedShellAccountRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/dashboard': {
+      id: '/_authed/_shell/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthedShellDashboardRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/monitor': {
+      id: '/_authed/_shell/monitor'
+      path: '/monitor'
+      fullPath: '/monitor'
+      preLoaderRoute: typeof AuthedShellMonitorRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/reports': {
+      id: '/_authed/_shell/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthedShellReportsRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/settings': {
+      id: '/_authed/_shell/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthedShellSettingsRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/shop': {
+      id: '/_authed/_shell/shop'
       path: '/shop'
       fullPath: '/shop'
-      preLoaderRoute: typeof ShopRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guardian/create': {
-      id: '/guardian/create'
-      path: '/guardian/create'
-      fullPath: '/guardian/create'
-      preLoaderRoute: typeof GuardianCreateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guardian/dashboard': {
-      id: '/guardian/dashboard'
-      path: '/guardian/dashboard'
-      fullPath: '/guardian/dashboard'
-      preLoaderRoute: typeof GuardianDashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guardian/monitor': {
-      id: '/guardian/monitor'
-      path: '/guardian/monitor'
-      fullPath: '/guardian/monitor'
-      preLoaderRoute: typeof GuardianMonitorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guardian/reports': {
-      id: '/guardian/reports'
-      path: '/guardian/reports'
-      fullPath: '/guardian/reports'
-      preLoaderRoute: typeof GuardianReportsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guardian/settings': {
-      id: '/guardian/settings'
-      path: '/guardian/settings'
-      fullPath: '/guardian/settings'
-      preLoaderRoute: typeof GuardianSettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guardian/waiting_for_connection': {
-      id: '/guardian/waiting_for_connection'
-      path: '/guardian/waiting_for_connection'
-      fullPath: '/guardian/waiting_for_connection'
-      preLoaderRoute: typeof GuardianWaiting_for_connectionRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedShellShopRouteImport
+      parentRoute: typeof AuthedShellRoute
     }
   }
 }
 
+interface AuthedShellRouteChildren {
+  AuthedShellAccountRoute: typeof AuthedShellAccountRoute
+  AuthedShellDashboardRoute: typeof AuthedShellDashboardRoute
+  AuthedShellMonitorRoute: typeof AuthedShellMonitorRoute
+  AuthedShellReportsRoute: typeof AuthedShellReportsRoute
+  AuthedShellSettingsRoute: typeof AuthedShellSettingsRoute
+  AuthedShellShopRoute: typeof AuthedShellShopRoute
+}
+
+const AuthedShellRouteChildren: AuthedShellRouteChildren = {
+  AuthedShellAccountRoute: AuthedShellAccountRoute,
+  AuthedShellDashboardRoute: AuthedShellDashboardRoute,
+  AuthedShellMonitorRoute: AuthedShellMonitorRoute,
+  AuthedShellReportsRoute: AuthedShellReportsRoute,
+  AuthedShellSettingsRoute: AuthedShellSettingsRoute,
+  AuthedShellShopRoute: AuthedShellShopRoute,
+}
+
+const AuthedShellRouteWithChildren = AuthedShellRoute._addFileChildren(
+  AuthedShellRouteChildren,
+)
+
+interface AuthedRouteChildren {
+  AuthedShellRoute: typeof AuthedShellRouteWithChildren
+  AuthedOnboardingRoute: typeof AuthedOnboardingRoute
+  AuthedWaitingRoute: typeof AuthedWaitingRoute
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedShellRoute: AuthedShellRouteWithChildren,
+  AuthedOnboardingRoute: AuthedOnboardingRoute,
+  AuthedWaitingRoute: AuthedWaitingRoute,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthedRoute: AuthedRouteWithChildren,
   AuthRoute: AuthRoute,
-  OnboardingRoute: OnboardingRoute,
-  ShopRoute: ShopRoute,
-  GuardianCreateRoute: GuardianCreateRoute,
-  GuardianDashboardRoute: GuardianDashboardRoute,
-  GuardianMonitorRoute: GuardianMonitorRoute,
-  GuardianReportsRoute: GuardianReportsRoute,
-  GuardianSettingsRoute: GuardianSettingsRoute,
-  GuardianWaiting_for_connectionRoute: GuardianWaiting_for_connectionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -1,85 +1,174 @@
-from .engine import Engine
-from helpers.prompt import Prompts
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+
+from helpers.prompt import Prompts
+
 if TYPE_CHECKING:
-    from models.models import GuardianSettings
+    from models.models import GuardianSettings, User
+
+
+@dataclass
+class Analysis:
+    flagged: bool
+    category: str | None
+    confidence: float
+    description: str
+    image_summary: dict[str, Any]
+    # True when the AI could not produce a usable answer; the scan is then treated as neutral
+    failed: bool = False
+
+
+CLEAN_DESCRIPTION = "No content matching configured restrictions."
+
+
+class StubController:
+    """Fake classifier results for development, so flows can be tested without Ollama or Gemini.
+
+    Every scan is clean unless a simulation was queued for that user via the /dev endpoints.
+    """
+
+    def __init__(self) -> None:
+        self._pending: dict[str, dict[str, Any]] = {}
+
+    def simulate(self, user_id: str, category: str, scans: int) -> None:
+        self._pending[user_id] = {"category": category, "remaining": scans}
+
+    def clear(self, user_id: str) -> None:
+        self._pending.pop(user_id, None)
+
+    def remaining(self, user_id: str) -> int:
+        return self._pending.get(user_id, {}).get("remaining", 0)
+
+    def next(self, user_id: str) -> str | None:
+        pending = self._pending.get(user_id)
+        if not pending:
+            return None
+        pending["remaining"] -= 1
+        if pending["remaining"] <= 0:
+            self._pending.pop(user_id)
+        return pending["category"]
+
 
 class ScreenClassifier:
-    def __init__(self, ai_to_use:str) -> None:
-        
-        self.engine = Engine(ai_to_use=ai_to_use)
+    def __init__(self, ai_to_use: str) -> None:
+        self.backend = ai_to_use
         self.prompts = Prompts()
+        self.stub = StubController()
+        self.engine = None
+        if ai_to_use != "stub":
+            from .engine import Engine  # imported lazily so the stub works without AI clients configured
 
-    
-    def overview(self, 
-                 image_overview:str, 
-                 guardian_settings:'GuardianSettings|None', 
-                 guardian_restrictions:list[str])->dict[str, Any]:
-        
-        
-        overview = self.engine._generate(
+            self.engine = Engine(ai_to_use=ai_to_use)
+            self.backend = self.engine.backend
+
+    def analyze(
+        self,
+        image_bytes: bytes,
+        user_id: str,
+        guardian_settings: "GuardianSettings | None",
+        restrictions: list[str],
+    ) -> Analysis:
+        if self.engine is None:
+            return self._stub_analysis(user_id)
+
+        summary = self.engine._classify_image(image_bytes=image_bytes, return_json=True)
+        if not isinstance(summary, dict) or not summary.get("summary"):
+            print(f"[ScreenClassifier] image description unusable: {summary!r}")
+            return self._failed()
+
+        verdict = self.overview(
+            image_overview=summary.get("detailed_description") or summary["summary"],
+            guardian_settings=guardian_settings,
+            guardian_restrictions=restrictions,
+        )
+        if verdict is None:
+            return self._failed(summary)
+
+        flagged = bool(verdict.get("flagged"))
+        try:
+            confidence = float(verdict.get("confidence") or 0.0)
+        except (TypeError, ValueError):
+            confidence = 0.0
+        return Analysis(
+            flagged=flagged,
+            category=verdict.get("category") if flagged else None,
+            confidence=confidence,
+            description=str(verdict.get("description") or (CLEAN_DESCRIPTION if not flagged else "")),
+            image_summary=summary,
+        )
+
+    def overview(
+        self,
+        image_overview: str,
+        guardian_settings: "GuardianSettings | None",
+        guardian_restrictions: list[str],
+    ) -> dict[str, Any] | None:
+        """Ask the model whether the described screen matches a restriction. None if the answer is unusable."""
+        assert self.engine is not None
+        verdict = self.engine._generate(
             text=image_overview,
             system_prompt=self.prompts.agent_purpose(
-                restricted_categories=guardian_restrictions if guardian_restrictions else self.default_restrictions,
-                strictness=guardian_settings.strictness if guardian_settings else "harsh"
+                restricted_categories=guardian_restrictions or self.default_restrictions,
+                strictness=guardian_settings.strictness if guardian_settings else "harsh",
             ),
-            return_json=True
+            return_json=True,
         )
-        """
-        returns {{
-  "flagged": boolean,
-  "category": string | null,
-  "confidence": number,
-  "description": string,
-  "source_context": string | null
-}}"""   
+        if not isinstance(verdict, dict) or "flagged" not in verdict or verdict.get("error"):
+            print(f"[ScreenClassifier] verdict unusable: {verdict!r}")
+            return None
+        return verdict
 
-        if not overview:
-            return {
-            "flagged": False,
-            "category": None,
-            "confidence": 0.0,
-            "description": "No content matching configured restrictions.",
-            "source_context": None
-        }
-            
-        if overview['flagged']:
-            overview['send_warning'] = True
-        else: 
-            overview['send_warning'] = False
-        return overview
-    
-    
-    def _breakdown_overview(self, user, classification_result: dict, include_name:bool=False):
-        img_summary = classification_result.get('image_summary', {})
-        confidence = (
-            classification_result.get('confidence', 0.0) * 0.5
-            + img_summary.get('confidence', 0.0) * 0.5
+    def _stub_analysis(self, user_id: str) -> Analysis:
+        category = self.stub.next(user_id)
+        if category is None:
+            return Analysis(
+                flagged=False,
+                category=None,
+                confidence=0.95,
+                description=CLEAN_DESCRIPTION,
+                image_summary={"summary": "Stubbed scan: an ordinary screen.", "confidence": 0.95},
+            )
+        return Analysis(
+            flagged=True,
+            category=category,
+            confidence=0.9,
+            description=f"Simulated content matching '{category}'.",
+            image_summary={"summary": f"Stubbed scan: simulated '{category}' content.", "confidence": 0.9},
         )
-        formatted_time = datetime.now().strftime("%m-%d-%y %I:%M %P")
+
+    @staticmethod
+    def _failed(summary: dict[str, Any] | None = None) -> Analysis:
+        return Analysis(
+            flagged=False,
+            category=None,
+            confidence=0.0,
+            description="This screen couldn't be analyzed.",
+            image_summary=summary or {},
+            failed=True,
+        )
+
+    @staticmethod
+    def breakdown(user: "User", analysis: Analysis, include_name: bool = False) -> str:
+        """Text of the report a guardian owner receives about a flagged screen."""
+        summary = analysis.image_summary
+        confidence = round(analysis.confidence * 0.5 + float(summary.get("confidence", 0.0) or 0.0) * 0.5, 2)
+        formatted_time = datetime.now().strftime("%m-%d-%y %I:%M %p")
+        lines = []
         if include_name:
-            dependent = f"Dependent: ** {user.name} **"
-        else:
-            dependent = ""
-            
-        return f"""
-{dependent}                
-Timestamp: {formatted_time}
-
-Category validated: ** {classification_result.get('category')} **
-
-description: {classification_result.get('description')}
-confidence: {confidence}
-
-info:
-    summary: {img_summary.get('summary')}
-    visible text summarized: {img_summary.get('visible_text')}
-    detailed description: {img_summary.get('detailed_description')}
-""".strip()
+            lines.append(f"Dependent: {user.name}")
+        lines += [
+            f"Timestamp: {formatted_time}",
+            f"Category: {analysis.category}",
+            f"Description: {analysis.description}",
+            f"Confidence: {confidence}",
+        ]
+        if summary.get("summary"):
+            lines.append(f"Summary: {summary['summary']}")
+        return "\n".join(lines)
 
     @property
-    def default_restrictions(self)->list[str]:
+    def default_restrictions(self) -> list[str]:
         return [
             "hate",
             "hate speech",
@@ -91,5 +180,5 @@ info:
             "racism",
             "sexism",
             "potential scam",
-            "looksmax"
+            "looksmax",
         ]

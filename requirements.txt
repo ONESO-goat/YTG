@@ -1,6 +1,12 @@
-bcrypt
-ollama
-python-dotenv
-# "fastapi[standard]"
+fastapi[standard]
 sqlmodel
 pydantic
+email-validator
+python-multipart
+python-dotenv
+bcrypt
+pyjwt
+pillow
+ollama
+google-genai
+pytest

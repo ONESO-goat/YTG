@@ -55,7 +55,7 @@ function Shop() {
         title="Shop"
         description="Trade the points you earn for real rewards."
         action={
-          <div className="duo-chip text-base">
+          <div className="chip text-base">
             <Gem className="h-5 w-5 text-primary" /> {formatPoints(me.user.currency)}
           </div>
         }
@@ -75,7 +75,7 @@ function Shop() {
       </div>
 
       <section className="mt-10">
-        <h2 className="mb-3 font-display text-xl font-extrabold">Your rewards</h2>
+        <h2 className="mb-3 font-display text-base">Your rewards</h2>
         {owned.isPending && <Spinner />}
         {owned.isError && <ErrorNotice error={owned.error} onRetry={() => owned.refetch()} />}
         {owned.data?.length === 0 && (
@@ -85,7 +85,7 @@ function Shop() {
         )}
         <ul className="space-y-2">
           {owned.data?.map((o) => (
-            <li key={o.id} className="duo-card flex items-center justify-between gap-3 p-4">
+            <li key={o.id} className="panel flex items-center justify-between gap-3 p-4">
               <span className="flex items-center gap-3">
                 <RewardIcon reward={o.reward} />
                 <span>
@@ -148,7 +148,7 @@ function RewardCard({
   const days = Math.ceil(missing / POINTS_PER_GOOD_DAY);
 
   return (
-    <div className="duo-card flex flex-col p-5">
+    <div className="panel flex flex-col p-5">
       <RewardIcon reward={reward} />
       <div className="mt-3 flex-1 font-bold">{reward.name}</div>
       {isFreeze && (
@@ -157,7 +157,7 @@ function RewardCard({
           {streak && ` You have ${streak.freezes} of ${streak.max_freezes}.`}
         </p>
       )}
-      <div className="mt-2 flex items-center gap-1 font-display text-xl font-extrabold">
+      <div className="mt-2 flex items-center gap-1 font-display text-base">
         <Gem className="h-4 w-4 text-primary" /> {formatPoints(reward.cost)}
       </div>
       <Progress className="mt-3" value={Math.min(100, (balance / reward.cost) * 100)} />
@@ -170,7 +170,7 @@ function RewardCard({
       </div>
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <button className="duo-btn mt-4" disabled={!affordable || freezesFull || buy.isPending}>
+          <button className="btn mt-4" disabled={!affordable || freezesFull || buy.isPending}>
             {buy.isPending ? "Buying…" : "Buy"}
           </button>
         </AlertDialogTrigger>

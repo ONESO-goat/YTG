@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { useRefreshProgress } from "@/lib/queries";
 import type { GameEvent } from "@/lib/types";
 import { Confetti } from "./Confetti";
+import { Knight } from "./Knight";
 import { gameIcon } from "./icons";
 
 const CelebrateContext = createContext<(events: GameEvent[]) => void>(() => {});
@@ -54,19 +55,15 @@ export function CelebrationProvider({ children }: { children: ReactNode }) {
         onOpenChange={(open) => !open && setLevelUps((prev) => prev.slice(1))}
       >
         <DialogContent className="max-w-sm text-center">
-          <div className="mx-auto flex h-24 w-24 animate-badge-bounce items-center justify-center rounded-3xl bg-gradient-primary text-primary-foreground shadow-glow">
-            <span className="font-display text-5xl font-extrabold">
+          <div className="relative mx-auto">
+            <Knight mood="happy" scale={2} animate />
+            <span className="absolute -right-6 bottom-2 animate-badge-bounce rounded-md bg-gold px-2 py-1.5 font-display text-sm text-primary-foreground">
               {current?.title.match(/\d+/)?.[0]}
             </span>
           </div>
-          <DialogTitle className="mt-2 font-display text-3xl font-extrabold">
-            {current?.title}
-          </DialogTitle>
+          <DialogTitle className="mt-2 font-display text-xl">{current?.title}</DialogTitle>
           <DialogDescription className="text-base">{current?.description}</DialogDescription>
-          <button
-            className="duo-btn duo-btn-lg mt-2 w-full"
-            onClick={() => setLevelUps((p) => p.slice(1))}
-          >
+          <button className="btn btn-lg mt-2 w-full" onClick={() => setLevelUps((p) => p.slice(1))}>
             Keep going
           </button>
         </DialogContent>

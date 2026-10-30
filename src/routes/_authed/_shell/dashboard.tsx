@@ -35,15 +35,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Knight, type KnightMood } from "@/components/game/Knight";
 import {
   AchievementTile,
-  DailyGoalCard,
   GoalRing,
   LeaderboardList,
   LevelCard,
   StreakCard,
 } from "@/components/game/widgets";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 import { useMe } from "@/lib/auth";
@@ -74,7 +75,7 @@ function Dashboard() {
 function MonitoringSwitch({ guardian }: { guardian: Guardian }) {
   const toggle = useToggleGuardian(guardian.id);
   return (
-    <label className="duo-card flex cursor-pointer items-center gap-3 px-4 py-3">
+    <label className="panel flex cursor-pointer items-center gap-3 px-4 py-3">
       {guardian.on ? (
         <ShieldCheck className="h-5 w-5 text-success" />
       ) : (
@@ -102,6 +103,7 @@ function PersonalDashboard() {
   const session = useMySession();
   const progress = useProgress();
   const p = progress.data;
+  const heroMood: KnightMood = !guardian.on ? "sleepy" : p?.today.goal_completed ? "happy" : "calm";
 
   return (
     <>
@@ -111,28 +113,53 @@ function PersonalDashboard() {
         action={!isMember && <MonitoringSwitch guardian={guardian} />}
       />
 
-      <div className="duo-card mb-6 flex flex-col items-start justify-between gap-4 bg-gradient-primary p-6 text-primary-foreground sm:flex-row sm:items-center">
+      <div className="panel mb-4 grid items-center gap-6 p-6 md:grid-cols-[auto_1fr_auto]">
+        <div className="flex justify-center">
+          <Knight scale={2} animate mood={heroMood} />
+        </div>
         <div>
-          <div className="font-display text-2xl font-extrabold">
+          <div className="font-display text-[10px] text-primary">Today's quest</div>
+          <div className="mt-3 font-display text-base leading-relaxed">
             {!guardian.on
               ? "Monitoring is paused"
               : p?.today.goal_completed
-                ? "Goal done. Nice work!"
-                : "Ready for a session?"}
+                ? "Quest complete!"
+                : `Browse ${p?.today.goal_minutes ?? 15} clean minutes`}
           </div>
-          <p className="mt-1 text-sm opacity-90">
-            {guardian.on
-              ? "Every clean minute earns points. Walk away from a warning and earn a bonus."
-              : isMember
+          <p className="mt-2 text-sm text-muted-foreground">
+            {!guardian.on
+              ? isMember
                 ? "Your guardian has paused monitoring for now."
-                : "Turn monitoring on to start earning points."}
+                : "Turn monitoring on to start earning."
+              : p?.today.goal_completed
+                ? "Everything else today is a bonus. Your knight is proud of you."
+                : "Every clean minute earns points. Walk away from a warning for a bonus."}
           </p>
+          {p && (
+            <div className="mt-4 max-w-sm">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Minute points today</span>
+                <span>
+                  {p.today.minute_points} / {p.today.minute_points_cap}
+                </span>
+              </div>
+              <Progress
+                className="mt-1.5 h-2"
+                value={(p.today.minute_points / p.today.minute_points_cap) * 100}
+              />
+            </div>
+          )}
+          {guardian.on && (
+            <Link to="/monitor" className="btn btn-lg mt-6">
+              <PlayCircle className="h-4 w-4" />
+              {session.data?.active ? "Open session" : "Start session"}
+            </Link>
+          )}
         </div>
-        {guardian.on && (
-          <Link to="/monitor" className="duo-btn duo-btn-outline duo-btn-lg">
-            <PlayCircle className="h-5 w-5" />{" "}
-            {session.data?.active ? "Open session" : "Start session"}
-          </Link>
+        {p && (
+          <div className="flex justify-center">
+            <GoalRing value={p.today.clean_minutes} goal={p.today.goal_minutes} size={140} />
+          </div>
         )}
       </div>
 
@@ -142,13 +169,12 @@ function PersonalDashboard() {
       )}
       {p && (
         <>
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-2">
             <LevelCard progress={p} />
             <StreakCard streak={p.streak} />
-            <DailyGoalCard progress={p} />
           </div>
 
-          <h2 className="mb-3 mt-8 font-display text-xl font-extrabold">Today</h2>
+          <h2 className="mb-3 mt-8 font-display text-base">Today</h2>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatCard
               icon={Gem}
@@ -198,7 +224,7 @@ function PersonalDashboard() {
       {!isMember && (
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-display text-xl font-extrabold">Recent reports</h2>
+            <h2 className="font-display text-base">Recent reports</h2>
             <Link to="/reports" className="text-sm font-bold text-primary">
               See all
             </Link>
@@ -222,7 +248,7 @@ function BadgesPreview() {
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-display text-xl font-extrabold">
+        <h2 className="font-display text-base">
           Badges{" "}
           <span className="text-sm font-normal text-muted-foreground">
             {unlocked}/{achievements.data.length}
@@ -246,7 +272,7 @@ function LeaderboardPreview({ scope }: { scope: "family" | "global" }) {
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-display text-xl font-extrabold">
+        <h2 className="font-display text-base">
           {scope === "family" ? "Family leaderboard" : "Leaderboard"}
         </h2>
         <Link
@@ -295,7 +321,7 @@ function FamilyDashboard() {
       <AddMember guardianId={guardian.id} />
 
       <section className="mt-6">
-        <h2 className="mb-3 font-display text-xl font-extrabold">Members</h2>
+        <h2 className="mb-3 font-display text-base">Members</h2>
         {members.isPending && <Spinner label="Loading members…" />}
         {members.isError && <ErrorNotice error={members.error} onRetry={() => members.refetch()} />}
         {members.data?.length === 0 && (
@@ -315,7 +341,7 @@ function FamilyDashboard() {
         {!!members.data?.length && <LeaderboardPreview scope="family" />}
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-display text-xl font-extrabold">Recent reports</h2>
+            <h2 className="font-display text-base">Recent reports</h2>
             <Link to="/reports" className="text-sm font-bold text-primary">
               See all
             </Link>
@@ -353,7 +379,7 @@ function AddMember({ guardianId }: { guardianId: string }) {
   });
 
   return (
-    <div className="duo-card p-5">
+    <div className="panel p-5">
       <div className="flex items-center gap-2 font-bold">
         <UserPlus className="h-5 w-5 text-primary" /> Connect a child
       </div>
@@ -380,7 +406,7 @@ function AddMember({ guardianId }: { guardianId: string }) {
           }}
           aria-label="Child's ID"
         />
-        <button className="duo-btn shrink-0" disabled={!raw || lookup.isPending || add.isPending}>
+        <button className="btn shrink-0" disabled={!raw || lookup.isPending || add.isPending}>
           {found ? `Connect ${found.name}` : lookup.isPending ? "Looking up…" : "Find"}
         </button>
       </form>
@@ -408,10 +434,10 @@ function MemberCard({ guardianId, member }: { guardianId: string; member: Member
   });
 
   return (
-    <div className="duo-card p-5">
+    <div className="panel p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 font-display text-lg font-extrabold text-primary">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 font-display text-sm text-primary">
             {user.name.slice(0, 1).toUpperCase()}
           </span>
           <div>
@@ -421,7 +447,7 @@ function MemberCard({ guardianId, member }: { guardianId: string; member: Member
         </div>
         <span
           className={cn(
-            "duo-chip text-xs",
+            "chip text-xs",
             warning
               ? "border-warm text-warm-foreground"
               : live
@@ -458,7 +484,7 @@ function MemberCard({ guardianId, member }: { guardianId: string; member: Member
           ].map(([label, value]) => (
             <div key={label} className="rounded-xl bg-muted p-2">
               <dt className="text-[10px] font-bold uppercase text-muted-foreground">{label}</dt>
-              <dd className="font-display text-lg font-extrabold">{value}</dd>
+              <dd className="font-display text-sm">{value}</dd>
             </div>
           ))}
         </dl>

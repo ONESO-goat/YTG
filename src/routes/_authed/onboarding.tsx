@@ -1,7 +1,7 @@
 import { Navigate, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Users, User } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common";
+import { Knight } from "@/components/game/Knight";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
@@ -17,9 +17,7 @@ function Onboarding() {
   const { refresh, logout } = useAuth();
   const nav = useNavigate();
   const isFamily = me.user.user_type === "caregiver";
-  const [name, setName] = useState(
-    isFamily ? `The ${me.user.name} family` : `${me.user.name}'s guardian`,
-  );
+  const [name, setName] = useState(isFamily ? `The ${me.user.name} family` : "Sir Violet");
   const [busy, setBusy] = useState(false);
 
   if (homePath(me) !== "/onboarding") return <Navigate to={homePath(me)} />;
@@ -38,23 +36,20 @@ function Onboarding() {
     }
   }
 
-  const Icon = isFamily ? Users : User;
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-lg">
         <Logo className="mb-6 justify-center" />
-        <form className="duo-card p-8" onSubmit={create}>
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Icon className="h-6 w-6" />
-          </span>
-          <h1 className="mt-4 font-display text-3xl font-extrabold">Name your Guardian</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+        <form className="panel p-8" onSubmit={create}>
+          <Knight mood="happy" scale={2} animate className="mx-auto" />
+          <h1 className="mt-6 text-center font-display text-lg">Name your knight</h1>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
             {isFamily
-              ? "Your Guardian watches over your family. Next you'll connect your kids with the ID shown on their screen."
-              : "Your Guardian is the companion that nudges you away from content you want to avoid, and rewards you when you do."}
+              ? "Your knight watches over your family. Next, connect your kids with the ID shown on their screen."
+              : "Your knight nudges you away from content you want to avoid, and rewards you when you do."}
           </p>
           <div className="mt-6">
-            <Label htmlFor="gname">Guardian name</Label>
+            <Label htmlFor="gname">Knight name</Label>
             <Input
               id="gname"
               required
@@ -63,8 +58,8 @@ function Onboarding() {
               onChange={(e) => setName(e.target.value)}
             />
           </div>
-          <button className="duo-btn duo-btn-lg mt-6 w-full" disabled={busy || !name.trim()}>
-            {busy ? "Creating…" : "Create Guardian"}
+          <button className="btn btn-lg mt-6 w-full" disabled={busy || !name.trim()}>
+            {busy ? "Summoning…" : "Summon my knight"}
           </button>
           <button
             type="button"

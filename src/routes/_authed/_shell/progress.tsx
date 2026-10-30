@@ -78,7 +78,7 @@ function Badges() {
     <div className="space-y-8">
       {progress.data && <LevelCard progress={progress.data} />}
       <section>
-        <h2 className="mb-3 font-display text-xl font-extrabold">
+        <h2 className="mb-3 font-display text-base">
           Unlocked{" "}
           <span className="text-sm font-normal text-muted-foreground">
             {unlocked.length}/{achievements.data.length}
@@ -98,7 +98,7 @@ function Badges() {
       </section>
       {locked.length > 0 && (
         <section>
-          <h2 className="mb-3 font-display text-xl font-extrabold">Still to earn</h2>
+          <h2 className="mb-3 font-display text-base">Still to earn</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {locked.map((a) => (
               <AchievementTile key={a.code} achievement={a} />
@@ -150,7 +150,7 @@ function LeaderboardOptIn() {
   });
   if (!progress.data) return null;
   return (
-    <label className="duo-card mb-4 flex cursor-pointer items-center justify-between gap-4 p-4">
+    <label className="panel mb-4 flex cursor-pointer items-center justify-between gap-4 p-4">
       <span>
         <span className="block text-sm font-bold">Show me on the leaderboard</span>
         <span className="text-xs text-muted-foreground">

@@ -67,8 +67,8 @@ function Account() {
     <>
       <PageHeader title="Account" />
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="duo-card space-y-3 p-6 text-sm">
-          <h3 className="font-display text-lg font-extrabold">Profile</h3>
+        <div className="panel space-y-3 p-6 text-sm">
+          <h3 className="font-display text-sm">Profile</h3>
           <Row label="Username" value={`@${me.user.username}`} />
           <Row label="Email" value={me.user.email} />
           <Row label="Account type" value={ACCOUNT_LABELS[me.user.user_type]} />
@@ -91,7 +91,7 @@ function Account() {
                 onChange={(e) => setName(e.target.value)}
               />
               <button
-                className="duo-btn shrink-0"
+                className="btn shrink-0"
                 disabled={
                   rename.isPending || name.trim().length < 3 || name.trim() === me.user.name
                 }
@@ -103,13 +103,13 @@ function Account() {
         </div>
 
         <form
-          className="duo-card space-y-4 p-6"
+          className="panel space-y-4 p-6"
           onSubmit={(e) => {
             e.preventDefault();
             changePassword.mutate();
           }}
         >
-          <h3 className="font-display text-lg font-extrabold">Change password</h3>
+          <h3 className="font-display text-sm">Change password</h3>
           <div>
             <Label htmlFor="pw-current">Current password</Label>
             <Input
@@ -135,17 +135,17 @@ function Account() {
               10+ characters with an uppercase letter and a number.
             </p>
           </div>
-          <button className="duo-btn w-full" disabled={changePassword.isPending}>
+          <button className="btn w-full" disabled={changePassword.isPending}>
             Update password
           </button>
         </form>
       </div>
-      <button className="duo-btn duo-btn-outline mt-6" onClick={logout}>
+      <button className="btn btn-outline mt-6" onClick={logout}>
         Sign out
       </button>
 
       <section className="mt-10 rounded-2xl border-2 border-destructive/30 p-6">
-        <h3 className="font-display text-lg font-extrabold text-destructive">Delete account</h3>
+        <h3 className="font-display text-sm text-destructive">Delete account</h3>
         <p className="mt-1 text-sm text-muted-foreground">
           {me.is_guardian_owner && me.guardian?.guardian_type === "family"
             ? "This also deletes your family guardian. Its members are disconnected and their reports removed."

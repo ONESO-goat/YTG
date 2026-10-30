@@ -1,6 +1,5 @@
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from helpers.prompt import Prompts
@@ -158,20 +157,14 @@ class ScreenClassifier:
     def breakdown(user: "User", analysis: Analysis, include_name: bool = False) -> str:
         """Text of the report a guardian owner receives about a flagged screen."""
         summary = analysis.image_summary
-        confidence = round(analysis.confidence * 0.5 + float(summary.get("confidence", 0.0) or 0.0) * 0.5, 2)
-        formatted_time = datetime.now().strftime("%m-%d-%y %I:%M %p")
-        lines = []
-        if include_name:
-            lines.append(f"Dependent: {user.name}")
-        lines += [
-            f"Timestamp: {formatted_time}",
-            f"Category: {analysis.category}",
-            f"Description: {analysis.description}",
-            f"Confidence: {confidence}",
-        ]
-        if summary.get("summary"):
-            lines.append(f"Summary: {summary['summary']}")
-        return "\n".join(lines)
+        confidence = analysis.confidence * 0.5 + float(summary.get("confidence", 0.0) or 0.0) * 0.5
+        who = f"{user.name} saw" if include_name else "You saw"
+        text = f"{who} content flagged as {analysis.category}."
+        if analysis.description:
+            text += f" {analysis.description.strip()}"
+        if confidence < 0.6:
+            text += " (low confidence)"
+        return text
 
     @property
     def default_restrictions(self) -> list[str]:

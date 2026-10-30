@@ -8,13 +8,13 @@ import { gameIcon } from "./icons";
 export function LevelCard({ progress }: { progress: Progress }) {
   const pct = (progress.xp_into_level / progress.xp_for_next_level) * 100;
   return (
-    <div className="duo-card flex items-center gap-4 p-5">
-      <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow">
+    <div className="panel flex items-center gap-4 p-5">
+      <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-primary text-primary-foreground">
         <span className="text-[10px] font-bold uppercase opacity-80">Level</span>
-        <span className="font-display text-2xl font-extrabold leading-none">{progress.level}</span>
+        <span className="font-display text-lg leading-none">{progress.level}</span>
       </div>
       <div className="min-w-0 flex-1">
-        <div className="font-display text-xl font-extrabold">{progress.title}</div>
+        <div className="font-display text-base">{progress.title}</div>
         <Bar className="mt-2 h-3" value={pct} aria-label="XP toward next level" />
         <div className="mt-1 text-xs text-muted-foreground">
           {formatPoints(progress.xp_into_level)} / {formatPoints(progress.xp_for_next_level)} XP to
@@ -28,7 +28,7 @@ export function LevelCard({ progress }: { progress: Progress }) {
 export function StreakCard({ streak }: { streak: Streak }) {
   const lit = streak.current > 0;
   return (
-    <div className="duo-card p-5">
+    <div className="panel p-5">
       <div className="flex items-center gap-4">
         <div
           className={cn(
@@ -39,7 +39,7 @@ export function StreakCard({ streak }: { streak: Streak }) {
           <Flame className={cn("h-9 w-9", lit && streak.done_today && "animate-soft-pulse")} />
         </div>
         <div>
-          <div className="font-display text-2xl font-extrabold">
+          <div className="font-display text-lg">
             {streak.current} day{streak.current === 1 ? "" : "s"}
           </div>
           <div className="text-xs text-muted-foreground">Best: {streak.best}</div>
@@ -97,7 +97,7 @@ export function GoalRing({
           r={r}
           fill="none"
           strokeWidth={stroke}
-          className="stroke-muted"
+          className="stroke-border"
         />
         <circle
           cx={size / 2}
@@ -112,36 +112,10 @@ export function GoalRing({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-2xl font-extrabold">{Math.min(value, goal)}</span>
+        <span className="font-display text-lg">{Math.min(value, goal)}</span>
         <span className="text-[11px] text-muted-foreground">
           / {goal} {label}
         </span>
-      </div>
-    </div>
-  );
-}
-
-export function DailyGoalCard({ progress }: { progress: Progress }) {
-  const t = progress.today;
-  return (
-    <div className="duo-card flex items-center gap-5 p-5">
-      <GoalRing value={t.clean_minutes} goal={t.goal_minutes} />
-      <div className="min-w-0 flex-1 space-y-2 text-sm">
-        <div className="font-display text-lg font-extrabold">Daily goal</div>
-        <p className="text-muted-foreground">
-          {t.goal_completed
-            ? "Done! Everything else today is a bonus."
-            : `${t.goal_minutes - t.clean_minutes} more clean minutes to complete it.`}
-        </p>
-        <div>
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Minute points today</span>
-            <span>
-              {t.minute_points} / {t.minute_points_cap}
-            </span>
-          </div>
-          <Bar className="mt-1 h-2" value={(t.minute_points / t.minute_points_cap) * 100} />
-        </div>
       </div>
     </div>
   );
@@ -153,16 +127,14 @@ export function AchievementTile({ achievement: a }: { achievement: Achievement }
   return (
     <div
       className={cn(
-        "duo-card flex flex-col items-center p-4 text-center transition",
+        "panel flex flex-col items-center p-4 text-center transition",
         !unlocked && "opacity-80",
       )}
     >
       <div
         className={cn(
           "relative flex h-14 w-14 items-center justify-center rounded-2xl",
-          unlocked
-            ? "bg-gradient-primary text-primary-foreground shadow-glow"
-            : "bg-muted text-muted-foreground",
+          unlocked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
         )}
       >
         <Icon className="h-7 w-7" />
@@ -196,7 +168,7 @@ export function LeaderboardList({
   me?: LeaderboardEntry | null;
 }) {
   return (
-    <ol className="duo-card divide-y-2 divide-border">
+    <ol className="panel divide-y-2 divide-border">
       {entries.map((e) => (
         <LeaderboardRow key={e.username} entry={e} />
       ))}
@@ -214,7 +186,7 @@ function LeaderboardRow({ entry: e }: { entry: LeaderboardEntry }) {
   const medal = ["text-amber-500", "text-slate-400", "text-orange-700"][e.rank - 1];
   return (
     <li className={cn("flex items-center gap-3 px-4 py-3", e.is_me && "bg-primary/10")}>
-      <span className="flex w-7 justify-center font-display text-lg font-extrabold">
+      <span className="flex w-7 justify-center font-display text-sm">
         {e.rank === 1 ? (
           <Crown className={cn("h-5 w-5", medal)} />
         ) : medal ? (
@@ -243,9 +215,7 @@ function LeaderboardRow({ entry: e }: { entry: LeaderboardEntry }) {
         </span>
       </span>
       <span className="text-right">
-        <span className="block font-display text-lg font-extrabold">
-          {formatPoints(e.weekly_xp)}
-        </span>
+        <span className="block font-display text-sm">{formatPoints(e.weekly_xp)}</span>
         <span className="text-[11px] text-muted-foreground">XP this week</span>
       </span>
     </li>

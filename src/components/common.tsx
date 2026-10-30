@@ -1,18 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { Loader2, Shield, type LucideIcon } from "lucide-react";
+import { Loader2, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { Knight } from "@/components/game/Knight";
 import { cn } from "@/lib/utils";
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <Link
-      to="/"
-      className={cn("flex items-center gap-2 font-display text-2xl font-extrabold", className)}
-    >
-      <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow">
-        <Shield className="h-5 w-5" />
-      </span>
-      <span className="bg-gradient-primary bg-clip-text text-transparent">YTG</span>
+    <Link to="/" className={cn("flex items-center gap-2.5", className)} aria-label="YTG home">
+      <Knight variant="head" scale={1} />
+      <span className="font-display text-sm text-primary">YTG</span>
     </Link>
   );
 }
@@ -46,7 +42,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="font-display text-3xl font-extrabold">{title}</h1>
+        <h1 className="font-display text-xl">{title}</h1>
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
       {action}
@@ -74,7 +70,7 @@ export function StatCard({
     destructive: "bg-destructive/10 text-destructive",
   };
   return (
-    <div className="duo-card p-5">
+    <div className="panel p-5">
       <div className="flex items-center gap-3">
         <span
           className={cn("inline-flex h-9 w-9 items-center justify-center rounded-xl", tones[tone])}
@@ -85,7 +81,7 @@ export function StatCard({
           {label}
         </span>
       </div>
-      <div className="mt-3 font-display text-3xl font-extrabold">{value}</div>
+      <div className="mt-3 font-display text-xl">{value}</div>
       {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
     </div>
   );

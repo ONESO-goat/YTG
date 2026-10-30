@@ -83,14 +83,14 @@ function BehaviourForm({ gid, initial }: { gid: string; initial: GuardianSetting
 
   return (
     <form
-      className="duo-card space-y-6 p-6"
+      className="panel space-y-6 p-6"
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate(form);
       }}
     >
       <fieldset>
-        <legend className="font-display text-lg font-extrabold">Strictness</legend>
+        <legend className="font-display text-sm">Strictness</legend>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {STRICTNESS.map((s) => (
             <button
@@ -113,7 +113,7 @@ function BehaviourForm({ gid, initial }: { gid: string; initial: GuardianSetting
       </fieldset>
 
       <div className="space-y-4">
-        <h3 className="font-display text-lg font-extrabold">Messages</h3>
+        <h3 className="font-display text-sm">Messages</h3>
         {(
           [
             ["warning_message", "Warning", "Shown when something restricted is on screen."],
@@ -141,7 +141,7 @@ function BehaviourForm({ gid, initial }: { gid: string; initial: GuardianSetting
       </div>
 
       <div className="space-y-4">
-        <h3 className="font-display text-lg font-extrabold">Consequences</h3>
+        <h3 className="font-display text-sm">Consequences</h3>
         <label className="flex items-center justify-between gap-4">
           <span>
             <span className="block text-sm font-bold">Lose points for ignoring a warning</span>
@@ -191,7 +191,7 @@ function BehaviourForm({ gid, initial }: { gid: string; initial: GuardianSetting
         </label>
       </div>
 
-      <button className="duo-btn w-full" disabled={!dirty || invalid || save.isPending}>
+      <button className="btn w-full" disabled={!dirty || invalid || save.isPending}>
         {save.isPending ? "Saving…" : "Save settings"}
       </button>
     </form>
@@ -220,8 +220,8 @@ function RestrictionsEditor({ gid }: { gid: string }) {
   });
 
   return (
-    <div className="duo-card p-6">
-      <h3 className="font-display text-lg font-extrabold">Restrictions</h3>
+    <div className="panel p-6">
+      <h3 className="font-display text-sm">Restrictions</h3>
       <p className="mt-1 text-sm text-muted-foreground">
         The kinds of content your Guardian nudges away from.
       </p>
@@ -240,7 +240,7 @@ function RestrictionsEditor({ gid }: { gid: string }) {
           onChange={(e) => setValue(e.target.value)}
         />
         <button
-          className="duo-btn shrink-0"
+          className="btn shrink-0"
           disabled={add.isPending || value.trim().length < 2}
           aria-label="Add restriction"
         >
@@ -264,7 +264,7 @@ function RestrictionsEditor({ gid }: { gid: string }) {
               <span className="text-sm text-muted-foreground">None added yet.</span>
             )}
             {restrictions.data.custom.map((r) => (
-              <span key={r} className="duo-chip border-primary/40">
+              <span key={r} className="chip border-primary/40">
                 {r}
                 <button
                   onClick={() => remove.mutate(r)}
@@ -281,7 +281,7 @@ function RestrictionsEditor({ gid }: { gid: string }) {
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
             {restrictions.data.default.map((r) => (
-              <span key={r} className="duo-chip text-muted-foreground">
+              <span key={r} className="chip text-muted-foreground">
                 {r}
               </span>
             ))}

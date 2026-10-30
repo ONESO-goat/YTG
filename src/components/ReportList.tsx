@@ -30,7 +30,7 @@ export function ReportList({ guardianId, limit }: { guardianId: string; limit?: 
   return (
     <ul className="space-y-3">
       {items.map((r) => (
-        <li key={r.id} className="duo-card flex items-start gap-3 p-4">
+        <li key={r.id} className="panel flex items-start gap-3 p-4">
           <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-nudge text-nudge-foreground">
             <Bell className="h-4 w-4" />
           </span>

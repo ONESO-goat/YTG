@@ -1,20 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  FlaskConical,
-  Gem,
-  Leaf,
-  Play,
-  ShieldAlert,
-  Sparkles,
-  Square,
-  TrendingDown,
-  TriangleAlert,
-} from "lucide-react";
-import { useRef, useState } from "react";
+import { FlaskConical, Leaf, Play, Square, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { PageHeader, StatCard, formatPoints } from "@/components/common";
+import { PageHeader, formatPoints } from "@/components/common";
 import { useCelebrate } from "@/components/game/Celebrations";
+import { Knight, type KnightMood } from "@/components/game/Knight";
 import { GoalRing } from "@/components/game/widgets";
 import { Progress as Bar } from "@/components/ui/progress";
 import { RequireRole } from "@/components/RequireRole";
@@ -121,97 +112,72 @@ function Monitor() {
     <>
       <PageHeader title="Session" description={`Guarded by ${guardian.name}`} />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="relative">
-          <StatCard icon={Gem} label="Balance" value={formatPoints(me.user.currency)} />
-          {pop && (
-            <span
-              key={pop.key}
-              className="animate-points-pop pointer-events-none absolute right-6 top-6 font-display text-2xl font-extrabold text-success"
-            >
-              +{pop.amount}
-              {pop.xp > 0 && <span className="ml-1 text-sm text-primary">+{pop.xp} XP</span>}
-            </span>
-          )}
-        </div>
-        <StatCard
-          icon={Sparkles}
-          label="Earned this session"
-          value={`+${monitor.earned}`}
-          tone="success"
-        />
-        <StatCard
-          icon={TrendingDown}
-          label="Lost this session"
-          value={`-${monitor.lost}`}
-          tone="destructive"
-        />
-      </div>
+      <Stage
+        state={monitor.state === "starting" ? "starting" : monitor.running ? monitor.state : "idle"}
+        warningText={warningText}
+        guardianOn={guardian.on}
+        pop={pop}
+        onStart={handleStart}
+        onStop={handleStop}
+      />
 
-      <div className="duo-card mt-6 p-8">
-        {!monitor.running ? (
-          <div className="flex flex-col items-center gap-4 py-8 text-center">
-            <Sparkles className="h-10 w-10 text-primary animate-sparkle" />
-            <h2 className="font-display text-2xl font-extrabold">Ready when you are</h2>
-            <p className="max-w-md text-sm text-muted-foreground">
-              YTG will ask to see your screen. Every {SCAN_INTERVAL_MS / 1000} seconds it takes a
-              quiet look. Each clean minute earns 10 points and 10 XP (up to an hour's worth a day),
-              and walking away from a warning earns a 25 point bonus. Staying on flagged content
-              after a warning can cost points.
-            </p>
-            {!guardian.on && (
-              <p className="text-sm font-bold text-destructive">
-                Monitoring is paused for this guardian.
-              </p>
-            )}
-            <button
-              className="duo-btn duo-btn-lg"
-              onClick={handleStart}
-              disabled={monitor.state === "starting" || !guardian.on}
-            >
-              <Play className="h-5 w-5" />{" "}
-              {monitor.state === "starting" ? "Starting…" : "Start session"}
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-6 py-4 text-center">
-            <StatusPanel state={monitor.state} warningText={warningText} />
-            {progress.data && (
-              <div className="flex w-full max-w-md items-center gap-4 rounded-2xl bg-muted p-4 text-left">
-                <GoalRing
-                  value={progress.data.today.clean_minutes}
-                  goal={progress.data.today.goal_minutes}
-                  size={72}
-                />
-                <div className="min-w-0 flex-1 text-sm">
-                  <div className="font-bold">
-                    Level {progress.data.level} · {progress.data.title}
-                  </div>
-                  <Bar
-                    className="mt-2 h-2"
-                    value={(progress.data.xp_into_level / progress.data.xp_for_next_level) * 100}
-                  />
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {progress.data.today.minute_points >= progress.data.today.minute_points_cap
-                      ? "You've hit today's minute-points cap. Great day! Bonuses still count."
-                      : progress.data.today.goal_completed
-                        ? "Daily goal done!"
-                        : `${progress.data.today.goal_minutes - progress.data.today.clean_minutes} clean minutes to today's goal`}
-                  </div>
-                </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        {progress.data && (
+          <div className="panel flex items-center gap-4 p-4">
+            <GoalRing
+              value={progress.data.today.clean_minutes}
+              goal={progress.data.today.goal_minutes}
+              size={72}
+            />
+            <div className="min-w-0 text-sm">
+              <div className="font-semibold">Daily goal</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {progress.data.today.minute_points >= progress.data.today.minute_points_cap
+                  ? "Minute-points cap reached. Bonuses still count."
+                  : progress.data.today.goal_completed
+                    ? "Done for today!"
+                    : `${progress.data.today.goal_minutes - progress.data.today.clean_minutes} clean minutes to go`}
               </div>
-            )}
-            <button className="duo-btn duo-btn-outline" onClick={handleStop}>
-              <Square className="h-4 w-4" /> Stop session
-            </button>
+            </div>
           </div>
         )}
+        {progress.data && (
+          <div className="panel p-4">
+            <div className="flex items-baseline justify-between">
+              <span className="font-display text-[10px] text-primary">
+                Lv {progress.data.level}
+              </span>
+              <span className="text-xs text-muted-foreground">{progress.data.title}</span>
+            </div>
+            <Bar
+              className="mt-3 h-3"
+              value={(progress.data.xp_into_level / progress.data.xp_for_next_level) * 100}
+            />
+            <div className="mt-2 text-xs text-muted-foreground">
+              {progress.data.xp_into_level} / {progress.data.xp_for_next_level} XP
+            </div>
+          </div>
+        )}
+        <div className="panel grid grid-cols-3 gap-2 p-4 text-center">
+          <div>
+            <div className="text-[11px] text-muted-foreground">Balance</div>
+            <div className="mt-2 font-display text-xs">{formatPoints(me.user.currency)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-muted-foreground">Earned</div>
+            <div className="mt-2 font-display text-xs text-success">+{monitor.earned}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-muted-foreground">Lost</div>
+            <div className="mt-2 font-display text-xs text-destructive">-{monitor.lost}</div>
+          </div>
+        </div>
       </div>
 
       {monitor.log.length > 0 && (
         <section className="mt-6">
-          <h2 className="mb-3 font-display text-xl font-extrabold">Activity</h2>
-          <ul className="duo-card divide-y-2 divide-border">
+          <h2 className="mb-3 font-display text-base">Activity</h2>
+          <ul className="panel divide-y-2 divide-border">
             {monitor.log.slice(0, 10).map((entry) => (
               <li
                 key={entry.at}
@@ -261,51 +227,171 @@ function Monitor() {
   );
 }
 
-function StatusPanel({ state, warningText }: { state: MonitorState; warningText: string }) {
-  if (state === "warning") {
-    return (
-      <div className="w-full rounded-2xl bg-warm/40 p-6 text-warm-foreground">
-        <ShieldAlert className="mx-auto h-10 w-10" />
-        <div className="mt-3 font-display text-2xl font-extrabold">A gentle nudge</div>
-        <p className="mt-2 text-sm">{warningText}</p>
-        <p className="mt-2 text-xs opacity-80">
-          Move away now to earn a bonus. Staying may cost points.
-        </p>
+// Mirrors IGNORE_THRESHOLD_SECONDS and AVOIDANCE_SECONDS in services/session_services.py
+const IGNORE_SECONDS = 30;
+const AVOID_SECONDS = 15;
+
+type StageState = MonitorState | "idle";
+
+const STAGE: Record<StageState, { mood: KnightMood; title: string; tone: string; border: string }> =
+  {
+    idle: { mood: "calm", title: "Ready when you are", tone: "text-foreground", border: "" },
+    starting: { mood: "calm", title: "Getting ready…", tone: "text-foreground", border: "" },
+    clear: { mood: "calm", title: "All clear", tone: "text-foreground", border: "" },
+    still: { mood: "sleepy", title: "Still there?", tone: "text-muted-foreground", border: "" },
+    warning: {
+      mood: "alert",
+      title: "Let's skip this one",
+      tone: "text-warm",
+      border: "border-warm bg-[#1a0a16]",
+    },
+    recovering: {
+      mood: "happy",
+      title: "Nice! Keep going",
+      tone: "text-success",
+      border: "border-success/60",
+    },
+  };
+
+/** Seconds since `active` last became true, ticking once a second. */
+function useSecondsSince(active: boolean) {
+  const [since, setSince] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    setSince(active ? Date.now() : null);
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return since === null ? 0 : Math.max(0, Math.floor((now - since) / 1000));
+}
+
+function Countdown({
+  seconds,
+  total,
+  label,
+  color,
+}: {
+  seconds: number;
+  total: number;
+  label: string;
+  color: string;
+}) {
+  const left = Math.max(total - seconds, 0);
+  return (
+    <div className="mx-auto mt-6 w-full max-w-sm">
+      <div className="h-3 overflow-hidden rounded-sm bg-muted">
+        <div
+          className={cn("h-full transition-[width] duration-1000 ease-linear", color)}
+          style={{ width: `${(left / total) * 100}%` }}
+        />
       </div>
-    );
-  }
-  if (state === "still") {
-    return (
-      <div className="w-full rounded-2xl bg-muted p-6">
-        <Sparkles className="mx-auto h-10 w-10 text-muted-foreground" />
-        <div className="mt-3 font-display text-2xl font-extrabold">Still there?</div>
-        <p className="mt-2 text-sm text-muted-foreground">
+      <div className="mt-2 text-xs text-muted-foreground">{label.replace("{s}", String(left))}</div>
+    </div>
+  );
+}
+
+function Stage({
+  state,
+  warningText,
+  guardianOn,
+  pop,
+  onStart,
+  onStop,
+}: {
+  state: StageState;
+  warningText: string;
+  guardianOn: boolean;
+  pop: { key: number; amount: number; xp: number } | null;
+  onStart: () => void;
+  onStop: () => void;
+}) {
+  const s = STAGE[state];
+  const warningFor = useSecondsSince(state === "warning");
+  const awayFor = useSecondsSince(state === "recovering");
+  const running = state !== "idle" && state !== "starting";
+
+  return (
+    <div
+      className={cn("panel relative flex flex-col items-center px-6 py-10 text-center", s.border)}
+    >
+      <div className="relative">
+        <Knight mood={s.mood} scale={3} animate={running || state === "idle"} />
+        {pop && (
+          <span
+            key={pop.key}
+            className="animate-points-pop pointer-events-none absolute -right-10 top-4 font-display text-sm text-gold"
+          >
+            +{pop.amount}
+          </span>
+        )}
+      </div>
+
+      <h2 className={cn("mt-8 text-base leading-relaxed sm:text-lg", s.tone)}>{s.title}</h2>
+
+      {state === "idle" && (
+        <>
+          <p className="mt-3 max-w-md text-sm text-muted-foreground">
+            Your knight will ask to see your screen and take a quiet look every{" "}
+            {SCAN_INTERVAL_MS / 1000} seconds. Clean minutes earn points, and walking away from a
+            warning earns a bonus.
+          </p>
+          {!guardianOn && (
+            <p className="mt-3 text-sm font-semibold text-destructive">
+              Monitoring is paused for this guardian.
+            </p>
+          )}
+          <button className="btn btn-lg mt-8" onClick={onStart} disabled={!guardianOn}>
+            <Play className="h-4 w-4" /> Start session
+          </button>
+        </>
+      )}
+
+      {state === "clear" && (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Your knight is on watch. Every clean minute earns 10 points.
+        </p>
+      )}
+
+      {state === "still" && (
+        <p className="mt-3 max-w-md text-sm text-muted-foreground">
           Your screen hasn't changed, so points are paused until it does. After about 5 minutes the
           session stops by itself.
         </p>
-      </div>
-    );
-  }
-  if (state === "recovering") {
-    return (
-      <div className="w-full rounded-2xl bg-success/15 p-6">
-        <Leaf className="mx-auto h-10 w-10 text-success" />
-        <div className="mt-3 font-display text-2xl font-extrabold">Nice, you moved on</div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Stay away a little longer to collect your bonus.
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/15">
-        <span className="h-4 w-4 animate-soft-pulse rounded-full bg-success" />
-      </div>
-      <div className="mt-4 font-display text-2xl font-extrabold">All good. Keep going.</div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Checking every {SCAN_INTERVAL_MS / 1000} seconds.
-      </p>
+      )}
+
+      {state === "warning" && (
+        <>
+          <p className="mt-3 max-w-md text-sm text-warm-foreground">{warningText}</p>
+          {warningFor < IGNORE_SECONDS ? (
+            <Countdown
+              seconds={warningFor}
+              total={IGNORE_SECONDS}
+              label="{s}s to walk away for a bonus"
+              color="bg-warm"
+            />
+          ) : (
+            <p className="mt-6 font-display text-[10px] leading-relaxed text-warm">
+              Staying here is costing points
+            </p>
+          )}
+        </>
+      )}
+
+      {state === "recovering" && (
+        <Countdown
+          seconds={awayFor}
+          total={AVOID_SECONDS}
+          label="Stay away {s}s more to collect +25"
+          color="bg-success"
+        />
+      )}
+
+      {running && (
+        <button className="btn btn-outline mt-8" onClick={onStop}>
+          <Square className="h-4 w-4" /> Stop session
+        </button>
+      )}
     </div>
   );
 }
@@ -363,25 +449,21 @@ function DevPanel() {
           onChange={(e) => setCategory(e.target.value)}
           aria-label="Category to simulate"
         />
-        <button className="duo-btn shrink-0" disabled={busy} onClick={() => simulate(3)}>
+        <button className="btn shrink-0" disabled={busy} onClick={() => simulate(3)}>
           Flag next 3 scans
         </button>
-        <button className="duo-btn shrink-0" disabled={busy} onClick={() => simulate(10)}>
+        <button className="btn shrink-0" disabled={busy} onClick={() => simulate(10)}>
           Flag next 10
         </button>
-        <button
-          className="duo-btn duo-btn-outline shrink-0"
-          disabled={busy}
-          onClick={() => simulate(0)}
-        >
+        <button className="btn btn-outline shrink-0" disabled={busy} onClick={() => simulate(0)}>
           Clear
         </button>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
-        <button className="duo-btn duo-btn-outline" disabled={busy} onClick={() => grant(0, 100)}>
+        <button className="btn btn-outline" disabled={busy} onClick={() => grant(0, 100)}>
           +100 XP
         </button>
-        <button className="duo-btn duo-btn-outline" disabled={busy} onClick={() => grant(1000, 0)}>
+        <button className="btn btn-outline" disabled={busy} onClick={() => grant(1000, 0)}>
           +1,000 points
         </button>
       </div>

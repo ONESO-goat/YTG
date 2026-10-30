@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { FullPageSpinner, Logo } from "@/components/common";
+import { Knight } from "@/components/game/Knight";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -77,8 +78,9 @@ function AuthPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-md">
+        <Knight scale={2} animate className="mx-auto mb-4" />
         <Logo className="mb-6 justify-center" />
-        <div className="duo-card p-6">
+        <div className="panel p-6">
           <Tabs defaultValue={search.mode ?? "signup"}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signup">Create account</TabsTrigger>
@@ -106,7 +108,7 @@ function AuthPage() {
                         className={cn(
                           "rounded-2xl border-2 p-3 text-left transition",
                           signupForm.user_type === t.id
-                            ? "border-primary bg-primary/10 shadow-glow"
+                            ? "border-primary bg-primary/10"
                             : "border-border bg-card hover:border-primary/40",
                         )}
                       >
@@ -158,7 +160,7 @@ function AuthPage() {
                     {pwProblem ?? "10+ characters with an uppercase letter and a number."}
                   </p>
                 </div>
-                <button type="submit" className="duo-btn duo-btn-lg w-full" disabled={busy}>
+                <button type="submit" className="btn btn-lg w-full" disabled={busy}>
                   {busy ? "Creating…" : "Create account"}
                 </button>
               </form>
@@ -193,7 +195,7 @@ function AuthPage() {
                     onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                   />
                 </div>
-                <button type="submit" className="duo-btn duo-btn-lg w-full" disabled={busy}>
+                <button type="submit" className="btn btn-lg w-full" disabled={busy}>
                   {busy ? "Signing in…" : "Sign in"}
                 </button>
               </form>

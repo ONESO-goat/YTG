@@ -69,17 +69,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               <>
                 <Link
                   to="/progress"
-                  className="duo-chip hidden sm:inline-flex"
+                  className="chip hidden sm:inline-flex"
                   title={`Level ${progress.data.level}: ${progress.data.title}`}
                 >
-                  <span className="rounded-md bg-gradient-primary px-1.5 text-xs font-extrabold text-primary-foreground">
+                  <span className="rounded-md bg-primary px-1.5 text-xs font-extrabold text-primary-foreground">
                     {progress.data.level}
                   </span>
                   {progress.data.title}
                 </Link>
                 <Link
                   to="/dashboard"
-                  className={cn("duo-chip", streak?.at_risk && "border-warm")}
+                  className={cn("chip", streak?.at_risk && "border-warm")}
                   title={
                     streak?.at_risk ? "Finish today's goal to keep your streak" : "Your streak"
                   }
@@ -95,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </>
             )}
             {playing && (
-              <Link to="/shop" className="duo-chip" title="Your points">
+              <Link to="/shop" className="chip" title="Your points">
                 <Gem className="h-4 w-4 text-primary" />
                 {formatPoints(me.user.currency)}
               </Link>
